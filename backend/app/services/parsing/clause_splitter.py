@@ -93,15 +93,22 @@ def split_clauses(
     if not headings:
         return _fallback_split(lines)
 
+    # 文档第 20 节：条款的最小语义单位是"条"。
+    # 若全文有"第X条"，则"款/阿拉伯编号/括号编号"只是条的组成，不另起条款，
+    # 否则"第一条 房屋基本情况"会被下面的（一）（二）（三）切成碎片，
+    # 既丢失上下文，也让 bbox 只能框住一小段。
+    major_headings = [h for h in headings if h[1] == "clause"]
+    active_headings = major_headings or headings
+
     clauses: list[Clause] = []
-    first_heading_idx = headings[0][0]
+    first_heading_idx = active_headings[0][0]
     if first_heading_idx > 0:
         preamble = lines[:first_heading_idx]
         if sum(len(ln.text) for ln in preamble) >= min_preamble_chars:
             clauses.append(_build_clause(preamble, seq=1, heading_kind=None, clause_no=None))
 
-    for pos, (start_idx, kind, no) in enumerate(headings):
-        end_idx = headings[pos + 1][0] if pos + 1 < len(headings) else len(lines)
+    for pos, (start_idx, kind, no) in enumerate(active_headings):
+        end_idx = active_headings[pos + 1][0] if pos + 1 < len(active_headings) else len(lines)
         block = lines[start_idx:end_idx]
         clauses.append(
             _build_clause(block, seq=len(clauses) + 1, heading_kind=kind, clause_no=no)

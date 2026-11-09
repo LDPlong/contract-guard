@@ -117,3 +117,21 @@ def test_numbered_and_paren_patterns():
 
 def test_empty_lines_returns_empty():
     assert split_text_lines([]) == []
+
+
+def test_sub_items_stay_inside_article():
+    """有"第X条"时，其下的（一）（二）（三）不另起条款，避免条被切碎。"""
+    lines = make_lines(
+        [
+            ("第一条 房屋基本情况", 1, 100),
+            ("（一）房屋坐落：某市某区某路 1 号。", 1, 116),
+            ("（二）房屋状态：两室一厅。", 1, 132),
+            ("第二条 租赁期限为一年。", 1, 160),
+        ]
+    )
+    clauses = split_text_lines(lines)
+
+    assert len(clauses) == 2
+    assert clauses[0].clause_no == "第一条"
+    assert "（二）房屋状态" in clauses[0].text
+    assert clauses[1].clause_no == "第二条"
