@@ -14,12 +14,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import health
+from app.api.v1 import documents, health
 from app.core.config import get_settings
 from app.core.constants import ErrorCode
 from app.core.errors import BizError, ok
 from app.core.logging import get_logger, request_id_ctx, setup_logging
 from app.models.base import engine, init_models
+from app.services.document_service import repair_stale_parsing
 
 settings = get_settings()
 log = get_logger(__name__)
@@ -32,8 +33,8 @@ async def lifespan(app: FastAPI):
     setup_logging("DEBUG" if settings.app_env == "dev" else "INFO")
     settings.ensure_dirs()
     await init_models()
+    await repair_stale_parsing()
 
-    # 启动自检（文档 3.4）：残留 parsing 状态修复在 M1 引入 documents 表后接入
     log.info(
         "app started env=%s demo_mode=%s ocr=%s llm_configured=%s workers_must_be_1=true",
         settings.app_env,
@@ -120,3 +121,4 @@ async def root() -> dict:
 
 
 app.include_router(health.router, prefix=API_PREFIX)
+app.include_router(documents.router, prefix=API_PREFIX)

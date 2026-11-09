@@ -5,7 +5,7 @@ description = "ContractGuard backend — 合同风险审查官"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
-asyncio_mode = "strict"
+asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]

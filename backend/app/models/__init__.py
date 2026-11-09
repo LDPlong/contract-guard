@@ -4,5 +4,6 @@
 """
 
 from app.models.base import Base, SessionLocal, engine, get_session
+from app.models.document import Clause, Document
 
-__all__ = ["Base", "SessionLocal", "engine", "get_session"]
+__all__ = ["Base", "Clause", "Document", "SessionLocal", "engine", "get_session"]

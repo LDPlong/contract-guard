@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.core.config import BACKEND_DIR, get_settings
 
@@ -42,10 +43,19 @@ class Base(DeclarativeBase):
 _settings = get_settings()
 DB_URL = _resolve_db_url(_settings.db_url)
 
-engine = create_async_engine(DB_URL, echo=False, pool_pre_ping=True)
+_is_sqlite = DB_URL.startswith("sqlite")
+# SQLite 用 NullPool：aiosqlite 的连接与事件循环绑定，
+# 复用连接在测试（多次 asyncio.run）和热重载时会踩 "attached to a different loop"
+_engine_kwargs: dict = {"echo": False}
+if _is_sqlite:
+    _engine_kwargs["poolclass"] = NullPool
+else:
+    _engine_kwargs["pool_pre_ping"] = True
+
+engine = create_async_engine(DB_URL, **_engine_kwargs)
 
 
-if DB_URL.startswith("sqlite"):
+if _is_sqlite:
     @event.listens_for(engine.sync_engine, "connect")
     def _sqlite_pragma(dbapi_connection, connection_record) -> None:  # noqa: ANN001
         cursor = dbapi_connection.cursor()
