@@ -6,6 +6,9 @@ sqlalchemy[asyncio]>=2.0,<2.1
 aiosqlite>=0.20
 python-multipart>=0.0.9
 
+# ---- 模型服务（OpenAI 兼容）----
+openai>=1.40
+
 # ---- 解析（M1 启用）----
 pymupdf>=1.24
 pdfplumber>=0.11
