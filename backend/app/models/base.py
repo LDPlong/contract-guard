@@ -7,8 +7,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
