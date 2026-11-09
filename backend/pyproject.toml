@@ -18,3 +18,8 @@ exclude = ["data", ".venv"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 ignore = ["B008"]  # FastAPI Depends 默认参数
+
+[tool.ruff.lint.per-file-ignores]
+# 脚本与测试里的长字符串（URL、SQL、样例文本）不强制 100 列
+"scripts/*" = ["E501"]
+"tests/*" = ["E501"]

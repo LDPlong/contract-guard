@@ -13,9 +13,9 @@ build/
 .env.local
 .env.*.local
 
-# ---- 运行数据（合同原文，绝不入库）----
-data/
-!data/.gitkeep
+# ---- 运行数据（上传文件、索引、抓取缓存，绝不入库）----
+# 注意用 /backend/data/ 精确匹配：backend/app/data/corpus 是法规语料，属于源码资产要入库
+/backend/data/
 
 # ---- 工具 ----
 .pytest_cache/
