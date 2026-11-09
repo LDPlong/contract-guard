@@ -1,0 +1,20 @@
+[project]
+name = "contract-guard-backend"
+version = "1.1.0"
+description = "ContractGuard backend — 合同风险审查官"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["data", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI Depends 默认参数

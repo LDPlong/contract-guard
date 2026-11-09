@@ -1,0 +1,28 @@
+# ---- 依赖 ----
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# ---- 环境与密钥 ----
+.env
+.env.local
+.env.*.local
+
+# ---- 运行数据（合同原文，绝不入库）----
+data/
+!data/.gitkeep
+
+# ---- 工具 ----
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+coverage.xml
+htmlcov/
+.DS_Store
+Thumbs.db
+*.log

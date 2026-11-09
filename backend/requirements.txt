@@ -1,0 +1,17 @@
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.7,<3.0
+pydantic-settings>=2.3,<3.0
+sqlalchemy[asyncio]>=2.0,<2.1
+aiosqlite>=0.20
+python-multipart>=0.0.9
+
+# ---- 解析（M1 启用）----
+pymupdf>=1.24
+pdfplumber>=0.11
+jieba>=0.42
+rank-bm25>=0.2
+numpy>=1.26
+
+# ---- 报告（M6 启用）----
+reportlab>=4.0
