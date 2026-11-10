@@ -41,6 +41,12 @@
   .toc { font-size: 10pt; }
   .toc div { display: flex; justify-content: space-between; border-bottom: 1px dotted #d8d5cc; padding: 1.6mm 0; }
   .small { font-size: 9pt; color: #666; }
+  figure { margin: 0 0 4mm; }
+  figure img { width: 100%; border: 1px solid #e0ddd4; display: block; }
+  figcaption { margin-top: 1.5mm; font-size: 8.5pt; color: #666; }
+  figure.half { width: 78%; }
+  .shots { display: flex; gap: 4mm; margin: 2mm 0 4mm; }
+  .shots figure { flex: 1; margin: 0; }
 </style>
 </head>
 <body>
@@ -511,6 +517,16 @@ data: {"done":4,"total":10}</pre>
     文案遵循一条规则：<strong>只描述用户能做什么，不描述我们多厉害</strong>。
     因此"可评测""不做开放式审查"这类内部表述只出现在技术文档里，不进入界面。
   </p>
+  <div class="shots">
+    <figure>
+      <img src="img/ui-home.png" alt="首页" />
+      <figcaption>首页：一份合同、一个入口，投放区占页面主体。</figcaption>
+    </figure>
+    <figure>
+      <img src="img/ui-laws.png" alt="法规库" />
+      <figcaption>法规库：五部法按条浏览，结论引用的那条能查到原文。</figcaption>
+    </figure>
+  </div>
 </section>
 
 <!-- 六、测试与部署 -->
