@@ -19,6 +19,7 @@ class LegalBasisOut(BaseModel):
 class FindingOut(BaseModel):
     id: str
     clause_id: str | None = None
+    clause_no: str | None = None
     item_id: str | None = None
     risk_level: str
     category: str
@@ -55,6 +56,7 @@ def to_finding_out(row: Finding) -> FindingOut:
     return FindingOut(
         id=row.id,
         clause_id=row.clause_id,
+        clause_no=row.clause.clause_no if row.clause else None,
         item_id=row.item_id,
         risk_level=row.risk_level,
         category=row.category,

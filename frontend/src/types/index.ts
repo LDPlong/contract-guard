@@ -77,6 +77,8 @@ export interface LegalBasis {
 export interface Finding {
   id: string
   clause_id: string | null
+  /** 条款编号，SSE 与回查接口都会带；缺失时为 null */
+  clause_no?: string | null
   risk_level: RiskLevel
   category: string
   title: string

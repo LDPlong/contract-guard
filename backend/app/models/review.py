@@ -9,6 +9,7 @@ from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.document import Clause
 
 
 def _uuid() -> str:
@@ -64,5 +65,7 @@ class Finding(Base):
     )
 
     review: Mapped[Review] = relationship(back_populates="findings")
+    # 前端要显示"第X条"，回查结果时不必再查一次
+    clause: Mapped[Clause | None] = relationship(lazy="selectin")
 
     __table_args__ = (Index("idx_findings_review", "review_id", "risk_level"),)

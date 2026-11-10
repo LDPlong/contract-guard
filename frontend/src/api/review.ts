@@ -1,5 +1,5 @@
-import { request } from '@/api/http'
-import type { DocumentDetail, HealthStatus, UploadResult } from '@/types'
+import { ApiError, getSessionId, request } from '@/api/http'
+import type { DocumentDetail, HealthStatus, ReviewDetail, StreamEvent, UploadResult } from '@/types'
 
 /** 8.10 健康检查（不走 Envelope） */
 export async function fetchHealth(): Promise<HealthStatus> {
@@ -28,9 +28,87 @@ export async function fetchDocument(documentId: string): Promise<DocumentDetail>
   return request<DocumentDetail>({ url: `/documents/${documentId}`, method: 'GET' })
 }
 
-/**
- * 8.4 SSE 审查流。
- * 契约是 POST，原生 EventSource 只支持 GET，因此必须用 fetch + ReadableStream
- * 手动解析 SSE 帧（文档 3.1 禁止事项）。实现放在 M4。
- */
+/** 8.5 审查结果 */
+export async function fetchReview(reviewId: string): Promise<ReviewDetail> {
+  return request<ReviewDetail>({ url: `/reviews/${reviewId}`, method: 'GET' })
+}
+
+/** 8.3 原始 PDF，交给 pdf.js 渲染 */
+export async function fetchDocumentFile(documentId: string): Promise<ArrayBuffer> {
+  return request<ArrayBuffer>({
+    url: `/documents/${documentId}/file`,
+    method: 'GET',
+    responseType: 'arraybuffer',
+    timeout: 60_000,
+  })
+}
+
 export const SSE_ENDPOINT = (documentId: string) => `/api/v1/documents/${documentId}/review`
+
+function parseFrame(block: string): StreamEvent | null {
+  let event = ''
+  const dataLines: string[] = []
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+  }
+  if (!event || dataLines.length === 0) return null
+  try {
+    return { event: event as StreamEvent['event'], data: JSON.parse(dataLines.join('')) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 8.3 审查流。
+ * 契约是 POST，原生 EventSource 只支持 GET，所以必须 fetch + ReadableStream
+ * 手动解析 SSE 帧（文档 3.1 明令禁止 EventSource）。
+ */
+export async function* streamReview(
+  documentId: string,
+  signal?: AbortSignal,
+): AsyncGenerator<StreamEvent> {
+  const resp = await fetch(SSE_ENDPOINT(documentId), {
+    method: 'POST',
+    headers: {
+      'X-Session-Id': getSessionId(),
+      Accept: 'text/event-stream',
+    },
+    signal,
+  })
+
+  if (!resp.ok || !resp.body) {
+    let message = `审查请求失败（${resp.status}）`
+    try {
+      const body = await resp.json()
+      if (body?.message) message = body.message
+    } catch {
+      /* 保持默认文案 */
+    }
+    throw new ApiError(resp.status, message)
+  }
+
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      let boundary = buffer.indexOf('\n\n')
+      while (boundary >= 0) {
+        const block = buffer.slice(0, boundary)
+        buffer = buffer.slice(boundary + 2)
+        const frame = parseFrame(block)
+        if (frame) yield frame
+        boundary = buffer.indexOf('\n\n')
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
