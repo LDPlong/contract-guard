@@ -17,28 +17,116 @@ const selectedSize = computed(() =>
   selected.value ? (selected.value.size / 1024 / 1024).toFixed(1) : '',
 )
 
-const coverage = [
+/** 三类合同的实际审查项，直接从清单文件来，不写虚的 */
+const checklists = [
   {
-    no: '01',
+    key: 'lease',
     title: '房屋租赁合同',
-    desc: '押金退还、违约金、涨租、转租、维修责任、提前退租',
+    count: 10,
+    items: [
+      ['押金退还条件与时限', '民法典 733'],
+      ['违约金比例', '民法典 585'],
+      ['单方解除权', '民法典 562、563'],
+      ['转租条款', '民法典 716'],
+      ['维修责任', '民法典 712、713'],
+      ['涨租条款', '民法典 543'],
+      ['提前退租责任', '民法典 584、585'],
+      ['房屋权属与抵押', '民法典 725'],
+      ['必备条款缺失', '民法典 704'],
+      ['争议解决与管辖', '民事诉讼法 35'],
+    ],
   },
   {
-    no: '02',
+    key: 'labor',
     title: '实习 / 劳动合同',
-    desc: '试用期、竞业限制、服务期违约金、社保、加班与补偿',
+    count: 8,
+    items: [
+      ['试用期期限', '劳动合同法 19'],
+      ['试用期工资', '劳动合同法 20'],
+      ['竞业限制', '劳动合同法 23、24'],
+      ['违约金条款', '劳动合同法 25'],
+      ['服务期与培训费', '劳动合同法 22'],
+      ['社会保险约定', '劳动合同法 38'],
+      ['加班与调休', '劳动合同法 31'],
+      ['解除与经济补偿', '劳动合同法 39、46'],
+    ],
   },
   {
-    no: '03',
+    key: 'prepaid',
     title: '培训贷 / 预付卡',
-    desc: '贷款披露、退费条款、捆绑销售、退课违约金',
+    count: 6,
+    items: [
+      ['贷款性质与利率披露', '民法典 496'],
+      ['退费条款', '民法典 497'],
+      ['捆绑销售', '民法典 497'],
+      ['解除与冷静期', '民法典 563'],
+      ['退课违约金', '民法典 585'],
+      ['主体资质与责任', '民法典 465'],
+    ],
   },
 ]
 
-const flow = [
-  { no: 'Ⅰ', title: '读条款', desc: '按「第X条」切分，保留页码与坐标' },
-  { no: 'Ⅱ', title: '对法条', desc: '检索民法典、劳动合同法原文，逐条比对' },
-  { no: 'Ⅲ', title: '给方向', desc: '指出风险、标注依据、给出可谈的修改方向' },
+/** 真实的坑条款长什么样，直接给条文片段和它踩的那一项 */
+const samples = [
+  {
+    level: '高',
+    text: '乙方提前退租的，押金及剩余租金不予退还。',
+    item: 'L07 提前退租责任',
+    ref: '民法典 第五百八十五条',
+    why: '押金与剩余租金全额不退，惩罚明显超过出租人实际损失，属于违约金过高的情形。',
+  },
+  {
+    level: '高',
+    text: '乙方在试用期内提出离职的，应向甲方支付违约金五千元。',
+    item: 'W04 违约金条款',
+    ref: '劳动合同法 第二十五条',
+    why: '除服务期与竞业限制外，用人单位不得与劳动者约定由劳动者承担违约金。',
+  },
+  {
+    level: '中',
+    text: '租赁期内甲方有权根据市场情况调整租金，乙方应按调整后金额支付。',
+    item: 'L06 涨租条款',
+    ref: '民法典 第五百四十三条',
+    why: '变更合同需双方协商一致，单方定价权使承租人无法预判成本。',
+  },
+]
+
+const LEVEL_TONE: Record<string, string> = {
+  高: 'bg-risk-high',
+  中: 'bg-risk-medium',
+  低: 'bg-risk-low',
+}
+
+/** 用户真会问的问题，直接给答案，不写宣传语 */
+const faq = [
+  [
+    '扫描件和拍照为什么暂不支持？',
+    '需要 OCR 或多模态模型逐页识别，当前版本只处理带文字层的 PDF。扫描件请先转成可搜索 PDF 再上传。',
+  ],
+  [
+    '「待复核」是什么意思？',
+    '模型置信度低于 0.6，或没有检索到可引用的法条。这类结论不计入风险评分，建议对照原文人工确认。',
+  ],
+  [
+    '法条库覆盖到哪些法规？',
+    '民法典全文 1260 条、劳动合同法全文 98 条。民事诉讼法、消费者权益保护法尚未入库，相关审查项会显示未检索到直接依据。',
+  ],
+  [
+    '上传的文件会保留多久？',
+    '存于本次会话目录，按匿名 session 隔离，可在审查页直接删除；服务端日志只记录长度与哈希，不记录正文。',
+  ],
+]
+
+const boundaries = [
+  '不输出可直接粘贴进合同的完整条文，只给修改方向',
+  '不预测诉讼结果、不评价胜诉可能性',
+  '企业批量审查、电子签章、手写体识别不在范围内',
+]
+
+const legend = [
+  ['高', '可能造成直接经济损失，或使一方丧失核心权利', 'text-risk-high'],
+  ['中', '权利义务明显失衡，但可通过协商修正', 'text-risk-medium'],
+  ['低', '表述不规范、缺少一般性约定，影响有限', 'text-risk-low'],
 ]
 
 function openPicker() {
@@ -49,7 +137,7 @@ function acceptFile(file: File) {
   errorMsg.value = ''
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
   if (!isPdf) {
-    errorMsg.value = '当前仅支持文字版 PDF。图片合同的多模态解析尚在接入中。'
+    errorMsg.value = '当前仅支持文字版 PDF。图片合同的多模态解析尚未开启。'
     return
   }
   if (file.size > MAX_MB * 1024 * 1024) {
@@ -89,57 +177,53 @@ async function submit() {
 
 <template>
   <div class="mx-auto w-full max-w-[1240px] px-4 sm:px-6">
-    <!-- 主视觉：左标题右说明，中间一条竖线 -->
-    <section class="grid gap-10 border-b border-line py-14 lg:grid-cols-[1.35fr_1fr] lg:gap-16 lg:py-20">
+    <!-- 顶部：功能陈述 + 支持范围，不放标语 -->
+    <section class="grid gap-10 border-b border-line py-12 lg:grid-cols-[1.3fr_1fr] lg:gap-16">
       <div>
-        <p class="label">Contract Review · 面向个人</p>
-        <h1 class="mt-5 font-serif text-[38px] leading-[1.18] tracking-tightest text-ink sm:text-[52px]">
-          签之前，<br />
-          先看清哪里<span class="border-b-2 border-risk-high/60 pb-[3px]">会吃亏</span>
+        <h1 class="max-w-[560px] font-serif text-[28px] leading-[1.45] tracking-tightest text-ink sm:text-[34px]">
+          上传合同 PDF，逐条对照法条，输出风险等级、依据原文与修改方向。
         </h1>
-        <p class="mt-6 max-w-lg text-[15px] leading-[1.85] text-ink-soft">
-          上传一份合同，逐条标出高风险条款，每条结论都绑定法条原文。
-          面向租房、实习、培训贷——最容易踩坑、又最没人帮你看的三类合同。
+        <p class="mt-5 max-w-xl text-[13px] leading-[1.9] text-ink-soft">
+          每条结论绑定具体法条编号与原文引用，可点开核对；无法检索到依据的，一律标注为待复核，
+          不给无依据的判断。
         </p>
       </div>
 
-      <div class="flex flex-col justify-end lg:border-l lg:border-line lg:pl-10">
-        <dl class="grid grid-cols-3 gap-4">
-          <div>
-            <dt class="label">覆盖类型</dt>
-            <dd class="num mt-1.5 font-serif text-[26px] leading-none text-ink">3</dd>
-            <p class="mt-1 text-[11px] text-ink-faint">类合同</p>
+      <div class="lg:border-l lg:border-line lg:pl-10">
+        <p class="label">当前范围</p>
+        <dl class="mt-3 space-y-2.5 text-[12px]">
+          <div class="flex items-baseline justify-between border-b border-line pb-2.5">
+            <dt class="text-ink-faint">支持</dt>
+            <dd class="num text-ink-soft">3 类合同 · 24 项审查</dd>
           </div>
-          <div>
-            <dt class="label">审查项</dt>
-            <dd class="num mt-1.5 font-serif text-[26px] leading-none text-ink">24</dd>
-            <p class="mt-1 text-[11px] text-ink-faint">条清单</p>
+          <div class="flex items-baseline justify-between border-b border-line pb-2.5">
+            <dt class="text-ink-faint">法条库</dt>
+            <dd class="num text-ink-soft">民法典 1260 · 劳动合同法 98</dd>
           </div>
-          <div>
-            <dt class="label">法条库</dt>
-            <dd class="num mt-1.5 font-serif text-[26px] leading-none text-ink">1358</dd>
-            <p class="mt-1 text-[11px] text-ink-faint">条现行有效</p>
+          <div class="flex items-baseline justify-between border-b border-line pb-2.5">
+            <dt class="text-ink-faint">输入格式</dt>
+            <dd class="num text-ink-soft">文字版 PDF · ≤ 20MB</dd>
+          </div>
+          <div class="flex items-baseline justify-between">
+            <dt class="text-ink-faint">暂不支持</dt>
+            <dd class="text-ink-faint">扫描件 / 手写 / 其他合同</dd>
           </div>
         </dl>
-        <p class="mt-6 text-[11px] leading-relaxed text-ink-faint">
-          只做风险提示与修改方向，不代拟文书、不预测结果。
-        </p>
       </div>
     </section>
 
-    <!-- 上传：左侧编号标签 + 右侧投递区 -->
-    <section class="grid gap-8 border-b border-line py-12 lg:grid-cols-[220px_1fr] lg:gap-16">
+    <!-- 上传 -->
+    <section class="grid gap-8 border-b border-line py-10 lg:grid-cols-[220px_1fr] lg:gap-16">
       <div>
-        <p class="label">Step 01</p>
-        <h2 class="mt-2 font-serif text-[22px] leading-snug text-ink">上传合同</h2>
+        <p class="label">上传</p>
         <p class="mt-2 text-[12px] leading-relaxed text-ink-faint">
-          文字版 PDF，≤ {{ MAX_MB }}MB，≤ 80 页。原件仅存于本次会话，可随时删除。
+          文件重命名后存于本次会话目录，按匿名 session 隔离，可随时删除。
         </p>
       </div>
 
       <div>
         <div
-          class="group cursor-pointer border border-dashed p-8 transition-colors duration-200 sm:p-10"
+          class="group cursor-pointer border border-dashed p-7 transition-colors duration-200 sm:p-8"
           :class="
             dragging
               ? 'border-accent bg-accent-wash/60'
@@ -154,27 +238,38 @@ async function submit() {
           @dragleave.prevent="dragging = false"
           @drop.prevent="onDrop"
         >
-          <div class="flex flex-col items-center text-center sm:flex-row sm:items-center sm:gap-5 sm:text-left">
-            <span
-              class="flex h-11 w-11 shrink-0 items-center justify-center border border-line bg-paper text-ink-soft transition-colors group-hover:border-accent/40 group-hover:text-accent"
-            >
-              <FileText :size="19" :stroke-width="1.6" />
-            </span>
-            <div class="mt-3 sm:mt-0">
-              <p class="text-[14px] font-medium text-ink">把合同 PDF 拖到这里，或点击选择</p>
-              <p class="mt-1 text-[11px] text-ink-faint">
-                识别为「房屋租赁 / 劳动 / 培训贷」后自动加载对应审查清单
-              </p>
+          <div class="flex flex-wrap items-center justify-between gap-5">
+            <div class="flex flex-1 items-center gap-4">
+              <span
+                class="flex h-11 w-11 shrink-0 items-center justify-center border border-line bg-paper text-ink-soft transition-colors group-hover:border-accent/40 group-hover:text-accent"
+              >
+                <FileText :size="19" :stroke-width="1.6" />
+              </span>
+              <div class="min-w-0">
+                <p class="text-[13px] text-ink">拖入 PDF，或点击选择文件</p>
+                <p class="mt-1 text-[11px] leading-relaxed text-ink-faint">
+                  自动识别合同类型并加载对应清单；识别失败会提示手动指定，不强行审查。
+                </p>
+                <p
+                  v-if="selected"
+                  class="mt-2 flex items-center gap-1.5 text-[11.5px] text-ink-soft"
+                >
+                  <FileText :size="12" class="text-ink-faint" />
+                  <span class="max-w-[260px] truncate">{{ selected.name }}</span>
+                  <span class="num text-ink-faint">{{ selectedSize }} MB</span>
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div
-            v-if="selected"
-            class="mt-5 flex items-center gap-2 border-t border-line pt-4 text-[12px] text-ink-soft"
-          >
-            <FileText :size="13" class="text-ink-faint" />
-            <span class="max-w-[320px] truncate">{{ selected.name }}</span>
-            <span class="num text-ink-faint">{{ selectedSize }} MB</span>
+            <button
+              class="btn-primary shrink-0"
+              :disabled="!selected || uploading"
+              @click.stop="submit"
+            >
+              <Loader2 v-if="uploading" :size="14" class="animate-spin" />
+              <span>{{ uploading ? '解析中' : '开始审查' }}</span>
+              <ArrowRight v-if="!uploading" :size="14" />
+            </button>
           </div>
 
           <input
@@ -186,55 +281,113 @@ async function submit() {
           />
         </div>
 
-        <div class="mt-4 flex items-center justify-between gap-4">
+        <div class="mt-2.5 flex items-center justify-between gap-4">
           <p v-if="errorMsg" class="flex items-start gap-1.5 text-[11px] leading-relaxed text-risk-high">
             <AlertCircle :size="13" class="mt-0.5 shrink-0" />
             {{ errorMsg }}
           </p>
-          <p v-else class="text-[11px] text-ink-faint">上传即表示同意：文件仅用于本次审查。</p>
-
-          <button class="btn-primary shrink-0" :disabled="!selected || uploading" @click.stop="submit">
-            <Loader2 v-if="uploading" :size="14" class="animate-spin" />
-            <span>{{ uploading ? '上传中' : '开始审查' }}</span>
-            <ArrowRight v-if="!uploading" :size="14" />
-          </button>
+          <p v-else class="text-[11px] text-ink-faint">上传的文件仅用于本次审查，可随时删除。</p>
         </div>
       </div>
     </section>
 
-    <!-- 覆盖范围：编号列表，不用卡片网格 -->
-    <section class="grid gap-8 border-b border-line py-12 lg:grid-cols-[220px_1fr] lg:gap-16">
+    <!-- 审查清单：三类合同的具体条目 -->
+    <section class="grid gap-8 border-b border-line py-10 lg:grid-cols-[220px_1fr] lg:gap-16">
       <div>
-        <p class="label">Step 02</p>
-        <h2 class="mt-2 font-serif text-[22px] leading-snug text-ink">覆盖范围</h2>
+        <p class="label">审查清单</p>
         <p class="mt-2 text-[12px] leading-relaxed text-ink-faint">
-          其他类型会明确提示「暂不支持」，不给不可靠的结论。
+          清单固定、可评测。每项都有对应的风险规则与法条依据，不做开放式自由审查。
         </p>
       </div>
 
       <div class="grid gap-px bg-line sm:grid-cols-3">
-        <div v-for="item in coverage" :key="item.no" class="bg-white p-5">
-          <p class="num font-serif text-[13px] text-accent">{{ item.no }}</p>
-          <h3 class="mt-2 text-[14px] font-medium text-ink">{{ item.title }}</h3>
-          <p class="mt-1.5 text-[11px] leading-relaxed text-ink-faint">{{ item.desc }}</p>
+        <div v-for="group in checklists" :key="group.key" class="bg-white p-4">
+          <div class="flex items-baseline justify-between border-b border-line pb-2">
+            <h2 class="text-[13px] font-medium text-ink">{{ group.title }}</h2>
+            <span class="num text-[11px] text-ink-faint">{{ group.count }} 项</span>
+          </div>
+          <ul class="mt-2 space-y-1.5">
+            <li
+              v-for="[name, ref] in group.items"
+              :key="name"
+              class="flex items-baseline justify-between gap-2 text-[11px]"
+            >
+              <span class="text-ink-soft">{{ name }}</span>
+              <span class="num shrink-0 text-[10px] text-ink-faint">{{ ref }}</span>
+            </li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <!-- 流程 -->
-    <section class="grid gap-8 py-12 lg:grid-cols-[220px_1fr] lg:gap-16">
+    <!-- 典型条款示例 -->
+    <section class="grid gap-8 border-b border-line py-10 lg:grid-cols-[220px_1fr] lg:gap-16">
       <div>
-        <p class="label">How it works</p>
-        <h2 class="mt-2 font-serif text-[22px] leading-snug text-ink">它做了什么</h2>
+        <p class="label">示例</p>
+        <p class="mt-2 text-[12px] leading-relaxed text-ink-faint">
+          下面是三类合同里常见的写法，以及它会被判成什么、依据是哪一条。
+        </p>
       </div>
 
-      <ol class="grid gap-6 sm:grid-cols-3">
-        <li v-for="step in flow" :key="step.no" class="border-t border-ink/15 pt-4">
-          <p class="num font-serif text-[15px] text-ink">{{ step.no }}</p>
-          <p class="mt-2 text-[13px] font-medium text-ink">{{ step.title }}</p>
-          <p class="mt-1 text-[11px] leading-relaxed text-ink-faint">{{ step.desc }}</p>
-        </li>
-      </ol>
+      <div class="space-y-px bg-line">
+        <div v-for="(s, i) in samples" :key="i" class="bg-white px-4 py-3.5">
+          <div class="flex items-center gap-2">
+            <span class="h-1.5 w-1.5 rounded-full" :class="LEVEL_TONE[s.level]" />
+            <span class="text-[10px] text-ink-faint">{{ s.level }}风险</span>
+            <span class="text-[10px] text-ink-faint">· {{ s.item }}</span>
+          </div>
+          <p class="mt-1.5 font-serif text-[13px] leading-relaxed text-ink">「{{ s.text }}」</p>
+          <p class="mt-1.5 text-[11.5px] leading-[1.8] text-ink-soft">{{ s.why }}</p>
+          <p class="mt-1 text-[10px] text-ink-faint">依据 {{ s.ref }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 常见问题 -->
+    <section class="grid gap-8 border-b border-line py-10 lg:grid-cols-[220px_1fr] lg:gap-16">
+      <div>
+        <p class="label">常见问题</p>
+      </div>
+
+      <div class="grid gap-x-10 gap-y-6 sm:grid-cols-2">
+        <div v-for="[q, a] in faq" :key="q">
+          <p class="text-[12px] font-medium text-ink">{{ q }}</p>
+          <p class="mt-1.5 text-[11.5px] leading-[1.85] text-ink-faint">{{ a }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 结论怎么读 -->
+    <section class="grid gap-8 py-10 lg:grid-cols-[220px_1fr] lg:gap-16">
+      <div>
+        <p class="label">结论说明</p>
+        <p class="mt-2 text-[12px] leading-relaxed text-ink-faint">
+          每个结论都带风险等级、依据和置信度，置信度低于 0.6 的折叠为待复核。
+        </p>
+      </div>
+
+      <div>
+        <div class="grid gap-px bg-line sm:grid-cols-3">
+          <div v-for="[level, desc, tone] in legend" :key="level" class="bg-white p-4">
+            <p class="text-[12px] font-medium" :class="tone">{{ level }}风险</p>
+            <p class="mt-1.5 text-[11px] leading-relaxed text-ink-faint">{{ desc }}</p>
+          </div>
+        </div>
+
+        <div class="mt-4 border border-line bg-white px-4 py-3.5">
+          <p class="label">不做的事</p>
+          <ul class="mt-2 space-y-1.5">
+            <li
+              v-for="line in boundaries"
+              :key="line"
+              class="flex gap-2 text-[11.5px] leading-relaxed text-ink-soft"
+            >
+              <span class="mt-[7px] h-px w-2.5 shrink-0 bg-line-strong" />
+              {{ line }}
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
   </div>
 </template>

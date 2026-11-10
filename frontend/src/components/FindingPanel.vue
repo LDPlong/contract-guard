@@ -128,7 +128,7 @@ function ordinal(index: number) {
 
           <div v-if="f.negotiation_tip" class="bg-accent-wash px-2.5 py-2">
             <p class="flex items-center gap-1 text-[10px] tracking-wide text-accent">
-              <MessageCircle :size="10" /> 可以这样谈
+              <MessageCircle :size="10" /> 沟通建议
             </p>
             <p class="mt-1 text-[11.5px] leading-[1.7] text-ink-soft">{{ f.negotiation_tip }}</p>
           </div>
