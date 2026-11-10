@@ -27,6 +27,8 @@ from pathlib import Path
 
 import httpx
 
+from app.utils.cn_number import cn_to_int, number_to_cn
+
 CORPUS_DIR = Path(__file__).resolve().parents[1] / "app" / "data" / "corpus"
 RAW_DIR = Path(__file__).resolve().parents[1] / "data" / "raw"
 
@@ -52,26 +54,6 @@ class Source:
     expect_last: str = ""  # 期望出现在正文的最后一条，用于校验完整性
     local_html: Path | None = None
     notes: list[str] = field(default_factory=list)
-
-
-CN_DIGITS = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4,
-             "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
-CN_UNITS = {"十": 10, "百": 100, "千": 1000}
-
-
-def cn_to_int(text: str) -> int | None:
-    """中文数字转整数，仅支持 1~9999（法条编号范围足够）。"""
-    total, section, number = 0, 0, 0
-    for ch in text:
-        if ch in CN_DIGITS:
-            number = CN_DIGITS[ch]
-        elif ch in CN_UNITS:
-            unit = CN_UNITS[ch]
-            section += (number or 1) * unit
-            number = 0
-        else:
-            return None
-    return total + section + number
 
 
 def html_to_text(raw: str) -> str:
@@ -155,36 +137,6 @@ def render(source: Source, articles: dict[int, str]) -> str:
         lines.append(articles[number])
         lines.append("")
     return "\n".join(lines)
-
-
-CN = "零一二三四五六七八九"
-CN_UNIT_POS = ["", "十", "百", "千"]
-
-
-def number_to_cn(number: int) -> str:
-    """整数转中文条号，符合法条书写规范：716 → 七百一十六，16 → 十六，1105 → 一千一百零五。"""
-    if number <= 0:
-        return CN[0]
-
-    raw = str(number)
-    parts: list[str] = []
-    pending_zero = False
-    for idx, ch in enumerate(raw):
-        digit = int(ch)
-        pos = len(raw) - idx - 1
-        if digit == 0:
-            pending_zero = True
-            continue
-        if pending_zero and parts:
-            parts.append("零")
-        pending_zero = False
-        parts.append(CN[digit] + CN_UNIT_POS[pos])
-    text = "".join(parts)
-
-    # 十位起头省略"一"（16 → 十六），但与更高位组合时保留（716 → 七百一十六）
-    if text.startswith("一十"):
-        text = text[1:]
-    return text
 
 
 SOURCES = [

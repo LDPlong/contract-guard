@@ -44,6 +44,19 @@ onMounted(() => {
           </span>
         </RouterLink>
 
+        <nav class="hidden items-center gap-5 text-[12px] sm:flex">
+          <RouterLink
+            to="/"
+            class="text-ink-soft transition-colors hover:text-ink"
+            active-class="!text-ink"
+          >审查</RouterLink>
+          <RouterLink
+            to="/laws"
+            class="text-ink-soft transition-colors hover:text-ink"
+            active-class="!text-ink"
+          >法规库</RouterLink>
+        </nav>
+
         <div class="flex items-center gap-3">
           <span
             v-if="app.isDemoMode"

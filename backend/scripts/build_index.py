@@ -48,6 +48,8 @@ async def _persist(chunks: list[Chunk]) -> int:
                     effective_date=_to_date(c.effective_date),
                     content=c.content,
                     checksum=c.checksum,
+                    article_index=c.article_index,
+                    doc_order=c.doc_order,
                 )
                 for c in chunks
             ]
@@ -71,8 +73,8 @@ async def main() -> None:
         raise SystemExit(f"语料目录为空：{corpus_dir}")
 
     chunks: list[Chunk] = []
-    for path in files:
-        parsed = parse_corpus_file(path)
+    for order, path in enumerate(files):
+        parsed = parse_corpus_file(path, doc_order=order)
         print(f"  {path.name}: {len(parsed)} 条")
         chunks.extend(parsed)
     print(f"合计 {len(chunks)} 个 chunk")

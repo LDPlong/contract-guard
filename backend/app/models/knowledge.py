@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import Date, String, Text
+from sqlalchemy import Date, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -24,3 +24,6 @@ class KnowledgeDoc(Base):
     # 去掉 UNIQUE：不同条文可能内容相同（短条文/被拆分的片段），
     # 幂等性由 build_index 的"先清空再全量写入"保证，比内容约束更可靠。
     checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    # 条号整数与法规顺序：字符串排"第十条"会排在"第二条"前，必须用整数排
+    article_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
+    doc_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

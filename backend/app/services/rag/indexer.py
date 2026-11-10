@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.services.rag.types import tokenize
+from app.utils.cn_number import cn_to_int
 
 HEADER_RE = re.compile(r"^#\s+(.+)$", re.M)
 META_RE = re.compile(r"<!--\s*(.+?)\s*-->")
@@ -43,6 +44,8 @@ class Chunk:
     effective_date: str | None
     content: str
     checksum: str
+    article_index: int = 0   # 条号整数，用于按法条顺序排序
+    doc_order: int = 0       # 法规展示顺序，由 build 时的文件顺序决定
 
 
 def _parse_meta(raw: str) -> dict[str, str]:
@@ -72,7 +75,7 @@ def _split_long(text: str) -> list[str]:
     return pieces
 
 
-def parse_corpus_file(path: Path) -> list[Chunk]:
+def parse_corpus_file(path: Path, doc_order: int = 0) -> list[Chunk]:
     raw = path.read_text(encoding="utf-8")
     header = HEADER_RE.search(raw)
     title = header.group(1).strip() if header else path.stem
@@ -94,6 +97,7 @@ def parse_corpus_file(path: Path) -> list[Chunk]:
         content = body[match.end() : end].strip()
         if len(content) < 4:
             continue
+        article_index = cn_to_int(article_cn) or 0
         parts = _split_long(content)
         for part_idx, part in enumerate(parts):
             suffix = f"#{part_idx + 1}" if len(parts) > 1 else ""
@@ -109,6 +113,8 @@ def parse_corpus_file(path: Path) -> list[Chunk]:
                     effective_date=effective,
                     content=part,
                     checksum=hashlib.sha1(part.encode("utf-8")).hexdigest(),
+                    article_index=article_index,
+                    doc_order=doc_order,
                 )
             )
     return chunks

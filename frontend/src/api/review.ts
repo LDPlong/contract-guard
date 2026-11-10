@@ -1,9 +1,10 @@
 import http, { ApiError, getSessionId, request } from '@/api/http'
 import type { DocumentDetail, HealthStatus, ReviewDetail, StreamEvent, UploadResult } from '@/types'
 
-/** 8.10 健康检查（不走 Envelope） */
+/** 8.10 健康检查：返回裸 JSON，没有 {code,message,data} 信封，不能走 request() */
 export async function fetchHealth(): Promise<HealthStatus> {
-  return request<HealthStatus>({ url: '/health', method: 'GET' })
+  const resp = await http.get('/health', { timeout: 8000 })
+  return resp.data as HealthStatus
 }
 
 /** 8.1 上传合同 */
