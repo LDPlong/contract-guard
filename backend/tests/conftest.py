@@ -43,6 +43,31 @@ def build_pdf_bytes(lines: list[str]) -> bytes:
     return data
 
 
+def build_cn_pdf_bytes(lines: list[str]) -> bytes:
+    """生成中文 PDF，条号与关键词都要能提取出来。"""
+    doc = pymupdf.open()
+    page = doc.new_page(width=595, height=842)
+    y = 90.0
+    for line in lines:
+        page.insert_text((72, y), line, fontname="china-s", fontsize=11)
+        y += 22
+    data = doc.tobytes()
+    doc.close()
+    return data
+
+
+@pytest.fixture()
+def chinese_pdf_bytes() -> bytes:
+    return build_cn_pdf_bytes(
+        [
+            "房屋租赁合同",
+            "第一条 甲方将位于某市某区的房屋出租给乙方。",
+            "第二条 乙方逾期支付租金的，应当向甲方支付违约金。",
+            "第三条 租赁期限为一年，租金每月三千元。",
+        ]
+    )
+
+
 @pytest.fixture()
 def sample_pdf_bytes() -> bytes:
     return build_pdf_bytes(

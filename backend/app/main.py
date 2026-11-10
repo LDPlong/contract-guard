@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import documents, health
+from app.api.v1 import documents, health, reviews
 from app.core.config import get_settings
 from app.core.constants import ErrorCode
 from app.core.errors import BizError, ok
@@ -122,3 +122,4 @@ async def root() -> dict:
 
 app.include_router(health.router, prefix=API_PREFIX)
 app.include_router(documents.router, prefix=API_PREFIX)
+app.include_router(reviews.router, prefix=API_PREFIX)

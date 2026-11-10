@@ -5,5 +5,17 @@
 
 from app.models.base import Base, SessionLocal, engine, get_session
 from app.models.document import Clause, Document
+from app.models.knowledge import KnowledgeDoc
+from app.models.review import Finding, Review
 
-__all__ = ["Base", "Clause", "Document", "SessionLocal", "engine", "get_session"]
+__all__ = [
+    "Base",
+    "Clause",
+    "Document",
+    "Finding",
+    "KnowledgeDoc",
+    "Review",
+    "SessionLocal",
+    "engine",
+    "get_session",
+]
