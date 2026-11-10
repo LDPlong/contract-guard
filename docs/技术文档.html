@@ -263,7 +263,7 @@ knowledge_docs(id, source, title, article_no, article_index, doc_order,
     <tr><th style="width:22%">项目</th><th>数值</th></tr>
     <tr><td>语料来源</td><td>民法典（2020 通过）、劳动合同法（2012 修正）、民事诉讼法（2023 修正）、
       消费者权益保护法（2013 修正）、社会保险法（2018 修正）</td></tr>
-    <tr><td>入库条数</td><td>1260 + 98 + 306 + 63 + 98 = 1825 条，五大类合同审查项引用的法条全部有原文</td></tr>
+    <tr><td>入库条数</td><td>1260 + 98 + 306 + 63 + 98 = 1825 条，三类合同 24 个审查项引用的法条全部有原文</td></tr>
     <tr><td>索引 chunk 数</td><td>1841（超长条文按 800 字 + 100 字重叠再切）</td></tr>
     <tr><td>语料体积</td><td>约 620 KB（随代码入库，离线可跑）</td></tr>
   </table>
@@ -518,7 +518,7 @@ data: {"done":4,"total":10}</pre>
   <h2>六、测试与部署</h2>
 
   <h3>6.1 自动化测试</h3>
-  <p>共 83 项测试，覆盖解析、检索、Agent、接口与多模态五个层面：</p>
+  <p>共 84 项测试，覆盖解析、检索、Agent、接口与部署形态、多模态五个层面：</p>
   <table>
     <tr><th style="width:30%">测试文件</th><th style="width:12%">数量</th><th>覆盖点</th></tr>
     <tr><td>test_splitter.py</td><td>8</td><td>四类编号、无编号兜底、条内款不另起、bbox 并集、偏移单调</td></tr>
@@ -529,7 +529,8 @@ data: {"done":4,"total":10}</pre>
     <tr><td>test_agent.py</td><td>10</td><td>评分扣分与截断、预筛候选、防幻觉丢弃、兜底标记</td></tr>
     <tr><td>test_llm_client.py</td><td>11</td><td>JSON 清洗、重试、超时、并发闸门（全部注入假 transport，不联网）</td></tr>
     <tr><td>test_vision_parser.py</td><td>5</td><td>图片条款组装、偏移一致、非法输出报错</td></tr>
-    <tr><td>接口测试</td><td>22</td><td>上传、详情、原文件、删除、SSE 事件序列、会话隔离、资料库分页与检索</td></tr>
+    <tr><td>接口测试</td><td>23</td><td>上传、详情、原文件、删除、SSE 事件序列、会话隔离、资料库分页与检索、
+      单进程托管的 SPA 回退（接口 404 不被 HTML 吞掉）</td></tr>
   </table>
   <p class="small">
     接口测试与多模态测试全部注入假模型，不发真实请求——保证 CI 可离线运行、不消耗额度。
@@ -546,11 +547,15 @@ data: {"done":4,"total":10}</pre>
   </table>
 
   <h3>6.3 部署</h3>
-  <pre># 后端（必须单进程）
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-
-# 前端
-npm run build && 静态托管 dist/，或将 /api 反向代理到 8000</pre>
+  <pre>cd frontend && npm run build          # 产出 frontend/dist
+cd ../backend && python -m scripts.build_index   # 首次：法规索引
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1</pre>
+  <p>
+    前端构建产物由后端进程直接托管：<code>/api/v1/*</code> 走接口，其余路径回落到
+    <code>index.html</code>，写错的接口仍返回 JSON 404 而不是一页 HTML。
+    这样部署就是"一个进程、一个端口"，演示服务器不必再配 nginx 反代与跨域；
+    代价是改前端必须重新构建，开发时仍用 vite dev server 走代理。
+  </p>
   <p>
     单进程是硬约束：解析任务、SSE 连接状态、BM25 内存索引都驻留在进程内，
     多 worker 会导致任务丢失与索引不一致。启动时会做一次状态修复：
@@ -579,7 +584,7 @@ npm run build && 静态托管 dist/，或将 /api 反向代理到 8000</pre>
   <h3>7.1 已完成</h3>
   <p>
     从空仓库到可演示的完整链路：合同上传（PDF / 图片）→ 条款切分 → 法规检索 → 逐项判定 →
-    流式呈现 → 结果落库 → 法规库自查。112 次提交，83 项测试，三类合同 24 项审查清单，
+    流式呈现 → 结果落库 → 法规库自查。20 余次提交，84 项测试，三类合同 24 项审查清单，
     1358 条法规入库。
   </p>
 

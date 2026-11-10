@@ -88,7 +88,25 @@ curl http://127.0.0.1:8000/api/v1/health
 {"status":"ok","db":true,"vector":false,"index_built":false,"llm":true,"demo_mode":false}
 ```
 
-`vector=false` 表示法规索引尚未构建（M3 完成 `scripts/build_index.py` 后为 true）。
+`index_built=false` 时先建法规索引（五部法，1825 条）：
+
+```bash
+cd backend && python -m scripts.build_index
+```
+
+### 4. 单进程部署（演示服务器）
+
+构建一次前端，产物就由后端进程直接托管，部署是"一个进程、一个端口"，不用 nginx 反代：
+
+```bash
+cd frontend && npm run build && cd ..       # 产出 frontend/dist
+cd backend && python -m scripts.build_index  # 首次：建法规索引
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+# 浏览器打开 http://<服务器IP>:8000
+```
+
+`/api/v1/*` 走接口，其余路径回落到 `index.html`（SPA 路由）；接口写错仍返回 JSON 404，不会被 HTML 吞掉。
+服务器上的完整步骤（systemd、nginx 反代与 SSE 缓冲、Docker、演示前检查）见 [`docs/部署.md`](docs/部署.md)。
 
 ---
 
@@ -108,21 +126,24 @@ curl http://127.0.0.1:8000/api/v1/health
 
 ```
 contract-guard/
-├── 项目开发文档.md        # 规格文档 v1.1（唯一契约）
+├── docs/                     # 技术文档、部署说明、演示脚本、团队分工
+├── Dockerfile                # 单镜像：前端构建 + 后端运行（未在本机验证）
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/       # 路由：只做校验与编排
-│   │   ├── core/         # 配置、常量、日志、异常
-│   │   ├── models/       # SQLAlchemy ORM
-│   │   ├── schemas/      # Pydantic（与 ORM 严格分离）
-│   │   └── services/     # 业务逻辑（parsing / rag / agent）
-│   └── tests/
+│   │   ├── api/v1/           # 路由：只做校验与编排
+│   │   ├── core/             # 配置、常量、日志、异常
+│   │   ├── data/             # 审查清单（3 类 24 项）+ 法规语料（5 部 1825 条）
+│   │   ├── models/           # SQLAlchemy ORM
+│   │   ├── schemas/          # Pydantic（与 ORM 严格分离）
+│   │   └── services/         # 业务逻辑：parsing / rag / agent / llm
+│   ├── scripts/              # 建索引、抓语料、端到端冒烟
+│   └── tests/                # 84 项
 └── frontend/
     └── src/
-        ├── api/          # http.ts（普通接口）+ review.ts（SSE）
-        ├── components/   # 左栏渲染、结论卡片、步骤条
-        ├── stores/       # Pinia
-        └── views/        # HomeView / ReviewView
+        ├── api/              # http.ts（普通接口）+ review.ts（SSE）
+        ├── components/       # 条款视图、结论卡片、步骤条、打印报告
+        ├── stores/           # Pinia
+        └── views/            # Home / Review / Guide / LawLibrary
 ```
 
 ---

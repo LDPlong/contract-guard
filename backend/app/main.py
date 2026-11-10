@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import documents, health, knowledge, reviews
 from app.core.config import get_settings
@@ -26,6 +28,11 @@ settings = get_settings()
 log = get_logger(__name__)
 
 API_PREFIX = "/api/v1"
+
+# 前端构建产物（frontend/dist）。存在时由本进程直接托管：
+# 部署就是"一个进程、一个端口"，不用再配 nginx 反代，也不必让演示环境多开一个服务。
+# 开发时 dist 通常不存在，前端仍走 vite dev server。
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 @asynccontextmanager
@@ -115,12 +122,32 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
     )
 
 
-@app.get("/")
-async def root() -> dict:
-    return ok({"name": "ContractGuard", "docs": "/docs", "health": f"{API_PREFIX}/health"})
-
-
 app.include_router(health.router, prefix=API_PREFIX)
 app.include_router(documents.router, prefix=API_PREFIX)
 app.include_router(reviews.router, prefix=API_PREFIX)
 app.include_router(knowledge.router, prefix=API_PREFIX)
+
+
+if (FRONTEND_DIST / "index.html").is_file():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        """SPA 路由回退：/review/xxx 这类前端路径要返回 index.html。
+
+        接口前缀不在此列——写错的接口应该老实返回 404，而不是一页 HTML。
+        """
+        if full_path.startswith(("api/", "docs", "openapi.json", "redoc")):
+            raise BizError(ErrorCode.NOT_FOUND, "接口不存在")
+
+        if full_path:
+            candidate = (FRONTEND_DIST / full_path).resolve()
+            if candidate.is_file() and FRONTEND_DIST.resolve() in candidate.parents:
+                return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST / "index.html")
+
+else:
+
+    @app.get("/")
+    async def root() -> dict:
+        return ok({"name": "ContractGuard", "docs": "/docs", "health": f"{API_PREFIX}/health"})

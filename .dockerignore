@@ -1,0 +1,21 @@
+# 构建上下文里不需要的东西：一律排除，镜像只保留源码 + 语料
+.git
+.gitignore
+.github
+README.md
+docs
+
+# 依赖与构建产物（前端在镜像里重新构建）
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+frontend/dist
+
+# 运行期数据：数据库、上传文件、索引、抓取中间件
+backend/data
+!backend/app/data
+
+# 本地环境与密钥
+.env
+backend/.env
