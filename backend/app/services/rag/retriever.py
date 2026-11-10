@@ -36,6 +36,7 @@ class Retriever:
         self._vectors: dict | None = None
         self._meta: dict | None = None
         self._meta_map: dict[str, dict] | None = None
+        self._ref_index: dict[tuple[str, str], list[str]] | None = None
 
     # ---- 加载 ----
     def _load(self) -> None:
@@ -136,3 +137,51 @@ class Retriever:
         path = self.index_dir / "chunks_meta.json"
         self._meta_map = json.loads(path.read_text("utf-8")) if path.is_file() else {}
         return self._meta_map
+
+    # ---- 确定性通道 ----
+    def resolve_refs(self, refs: list[str]) -> list[RetrievedChunk]:
+        """把清单里的"法规名 第X条"直接取出来，不经过 BM25 排序。
+
+        为什么要有这条通道：语义检索会被字面相近的条文带偏——比如"书面协议选择人民法院管辖"
+        最像的是民诉法涉外编第二百七十七条，而租赁合同该用的是第三十五条。
+        清单里的 legal_refs 是人工校过的，按条精确取，比"检索猜"可靠。
+        """
+        if not refs:
+            return []
+        self._load()
+        assert self._data is not None
+        by_article = self._article_index()
+        contents = dict(zip(self._data["ids"], self._data["contents"]))
+        picked: list[RetrievedChunk] = []
+        seen: set[str] = set()
+        for ref in refs:
+            parts = ref.split()
+            if len(parts) < 2:
+                continue
+            source, article = parts[0], parts[-1]
+            if not article.startswith("第"):
+                article = f"第{article}"
+            for chunk_id in by_article.get((source, article), [])[:2]:
+                if chunk_id in seen:
+                    continue
+                seen.add(chunk_id)
+                info = self._meta_by_id().get(chunk_id, {})
+                picked.append(
+                    RetrievedChunk(
+                        chunk_id=chunk_id,
+                        content=contents.get(chunk_id, ""),
+                        score=1.0,  # 置顶：融合时永远排在被检索出来的条文之前
+                        article_no=info.get("article_no", article),
+                        source=info.get("source", source),
+                        effective_date=info.get("effective_date"),
+                    )
+                )
+        return picked
+
+    def _article_index(self) -> dict[tuple[str, str], list[str]]:
+        if self._ref_index is None:
+            self._ref_index = {}
+            for chunk_id, info in self._meta_by_id().items():
+                key = (info.get("source", ""), info.get("article_no", ""))
+                self._ref_index.setdefault(key, []).append(chunk_id)
+        return self._ref_index

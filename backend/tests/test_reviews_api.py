@@ -38,6 +38,9 @@ PAYLOAD = {
 
 
 class FakeRetriever:
+    def resolve_refs(self, refs):
+        return []
+
     async def search(self, query, top_k=5):
         return [
             RetrievedChunk(

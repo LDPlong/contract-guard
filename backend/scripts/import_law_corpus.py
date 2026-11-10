@@ -53,6 +53,7 @@ class Source:
     urls: list[str]
     expect_last: str = ""  # 期望出现在正文的最后一条，用于校验完整性
     local_html: Path | None = None
+    pdf_urls: list[str] = field(default_factory=list)  # 官方 PDF（人大网），逐页抽文字
     notes: list[str] = field(default_factory=list)
 
 
@@ -111,6 +112,46 @@ def fetch(url: str, client: httpx.Client, retries: int = 3) -> str:
     return ""
 
 
+# PDF 正文按版面断行，句中断行必须拼回去；句末与分项开头的断行要保留
+KEEP_END = "。；：！？"
+KEEP_START = ("（", "(", "第", "一、", "二、", "三、", "四、", "五、", "六、", "七、")
+
+
+def tidy_pdf_body(body: str) -> str:
+    """把 PDF 抽出的条文正文按句读重排，去掉页眉页脚与页码行。"""
+    lines = [ln.strip() for ln in body.split("\n")]
+    lines = [
+        ln
+        for ln in lines
+        if ln
+        and ln != "中华人民共和国民事诉讼法"
+        and not re.fullmatch(r"[—\-－\s]*\d+[—\-－\s]*", ln)
+    ]
+    out = ""
+    for ln in lines:
+        if not out:
+            out = ln
+        elif out[-1] in KEEP_END or ln.startswith(KEEP_START):
+            out += "\n" + ln
+        else:
+            out += ln
+    return out
+
+
+def fetch_pdf(url: str, client: httpx.Client) -> str:
+    """人大网的法律 PDF 是权威版，逐页抽文字后交给条款切分。"""
+    import pymupdf
+
+    try:
+        resp = client.get(url)
+        resp.raise_for_status()
+        doc = pymupdf.open(stream=resp.content, filetype="pdf")
+        return "\n".join(page.get_text() for page in doc)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! PDF 抓取失败 {url} ({type(exc).__name__})")
+        return ""
+
+
 def build_source(source: Source, client: httpx.Client) -> dict[int, str]:
     merged: dict[int, str] = {}
     if source.local_html and source.local_html.exists():
@@ -121,6 +162,13 @@ def build_source(source: Source, client: httpx.Client) -> dict[int, str]:
             continue
         for number, body in extract_articles(text).items():
             merged.setdefault(number, body)
+        time.sleep(0.25)
+    for url in source.pdf_urls:
+        text = fetch_pdf(url, client)
+        if not text:
+            continue
+        for number, body in extract_articles(text).items():
+            merged.setdefault(number, tidy_pdf_body(body))
         time.sleep(0.25)
     return merged
 
@@ -162,19 +210,50 @@ SOURCES = [
         local_html=RAW_DIR / "labor_law.html",
         expect_last="第九十八条",
     ),
+    Source(
+        key="consumer_protection_law",
+        title="中华人民共和国消费者权益保护法",
+        source="消费者权益保护法",
+        version="2013-10-25 修正",
+        effective="2014-03-15",
+        urls=["http://www.npc.gov.cn/npc/c2/c12435/c12488/201905/t20190521_184603.html"],
+        expect_last="第六十三条",
+    ),
+    Source(
+        key="social_insurance_law",
+        title="中华人民共和国社会保险法",
+        source="社会保险法",
+        version="2018-12-29 修正",
+        effective="2011-07-01",
+        urls=["http://zzhrss.zaozhuang.gov.cn/yhyshj/ldlscjg/flfg/202311/t20231130_1796283.html"],
+        expect_last="第九十八条",
+    ),
+    Source(
+        key="civil_procedure_law",
+        title="中华人民共和国民事诉讼法",
+        source="民事诉讼法",
+        version="2023-09-01 修正",
+        effective="2024-01-01",
+        urls=[],
+        pdf_urls=["http://www.npc.gov.cn/npc/c2/c30834/202401/P020240108541839745616.pdf"],
+        expect_last="第三百零六条",
+    ),
 ]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="只校验，不写文件")
+    parser.add_argument("--only", nargs="*", default=[], help="只抓指定的 key（默认全部）")
     args = parser.parse_args()
 
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
     with httpx.Client(
-        timeout=40, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
+        timeout=60, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
     ) as client:
         for source in SOURCES:
+            if args.only and source.key not in args.only:
+                continue
             print(f"[{source.key}] 抓取中…")
             articles = build_source(source, client)
             numbers = sorted(articles)

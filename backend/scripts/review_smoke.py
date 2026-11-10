@@ -52,7 +52,10 @@ async def main() -> None:
           f"跳过 {len(done_payload.get('skipped_items', []))} 项")
 
     for f in findings:
-        basis = "、".join(b.get("article", "") for b in f.get("legal_basis", [])) or "（无依据）"
+        basis = (
+            "、".join(f"{b.get('source', '')} {b.get('article', '')}".strip() for b in f.get("legal_basis", []))
+            or "（无依据）"
+        )
         print(f"\n[{f['risk_level']}] {f['title']}  ({f['category']}, conf={f['confidence']})")
         print(f"  条款: {f.get('clause_no')} p{f.get('page_no')}")
         print(f"  理由: {f['reason']}")

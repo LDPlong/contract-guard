@@ -102,7 +102,7 @@ onMounted(async () => {
       <div>
         <h1 class="font-serif text-[24px] leading-tight text-ink">法规库</h1>
         <p class="mt-1.5 text-[11.5px] text-ink-faint">
-          民法典与劳动合同法全文，按条浏览或检索；结论里引用的法条都能在这里查到原文。
+          五部法律全文，按条浏览或检索；结论里引用的法条都能在这里查到原文。
         </p>
       </div>
 

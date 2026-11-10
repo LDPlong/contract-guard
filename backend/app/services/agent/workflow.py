@@ -28,6 +28,7 @@ CONTRACT_LABEL = {
     "prepaid": "培训贷 / 预付卡",
 }
 LEGAL_QUOTE_CHARS = 80
+PROMPT_LAW_TOP = 5  # 塞进提示词的法条条数上限（参考法条优先占位）
 VALID_LEVELS = {RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.LOW, RiskLevel.NONE}
 
 
@@ -182,7 +183,9 @@ async def _judge_item(
     if item.mode == "missing_check":
         if not missing:
             return _fallback_hit_none(item)
-        chunks = await retriever.search(item.query, top_k=1)
+        chunks = retriever.resolve_refs(item.legal_refs)[:1] or await retriever.search(
+            item.query, top_k=1
+        )
         basis = [
             {
                 "source": c.source,
@@ -208,10 +211,14 @@ async def _judge_item(
     if not candidates:
         return _fallback_hit_none(item)
 
+    # 参考法条优先：清单里点名的那几条按条精确取，检索只做补充
+    pinned = retriever.resolve_refs(item.legal_refs)
     try:
-        chunks = await retriever.search(item.query, top_k=5)
+        retrieved = await retriever.search(item.query, top_k=5)
     except Exception:  # noqa: BLE001
-        chunks = []
+        retrieved = []
+    pinned_ids = {c.chunk_id for c in pinned}
+    chunks = (pinned + [c for c in retrieved if c.chunk_id not in pinned_ids])[:PROMPT_LAW_TOP]
 
     clause_list = [c.clause for c in candidates]
     user_prompt = build_user(item, clause_list, chunks)

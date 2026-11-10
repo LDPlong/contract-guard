@@ -101,6 +101,10 @@ class FakeRetriever:
         self.queries.append(query)
         return self.chunks[:top_k]
 
+    def resolve_refs(self, refs):
+        """参考法条通道：测试里统一按"检索到什么用什么"处理。"""
+        return []
+
 
 def fake_client(payload: dict) -> LLMClient:
     async def transport(messages, json_mode, max_tokens):
