@@ -10,29 +10,84 @@
   }
 
   body {
-    @apply bg-[#F7F8FA] text-ink antialiased;
+    @apply bg-paper text-ink antialiased;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 标题统一走衬线，形成"文书感" */
+  h1,
+  h2,
+  h3 {
+    @apply font-serif;
+    letter-spacing: -0.01em;
   }
 
   ::selection {
-    @apply bg-brand/20;
+    background: rgba(27, 58, 107, 0.12);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(27, 58, 107, 0.4);
+    outline-offset: 2px;
+  }
+
+  /* 细滚动条，不打断纸面 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #dcd8ce;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c9c4b8;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-card bg-white shadow-card;
+    @apply rounded-card border border-line bg-white;
+  }
+
+  .card-quiet {
+    @apply rounded-card border border-line bg-paper;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-card bg-brand px-5 py-2.5
-      text-sm font-medium text-white transition-colors hover:bg-brand-dark
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-card bg-accent px-5 py-2.5
+      text-sm font-medium tracking-wide text-white transition-all duration-200 ease-calm
+      hover:bg-accent-deep active:translate-y-px
+      disabled:cursor-not-allowed disabled:opacity-40;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-card border border-[#E3E6EC]
-      bg-white px-4 py-2 text-sm text-ink-soft transition-colors hover:border-brand/40
-      hover:text-brand;
+    @apply inline-flex items-center justify-center gap-2 rounded-card border border-line
+      bg-white px-4 py-2 text-sm text-ink-soft transition-colors duration-200
+      hover:border-line-strong hover:text-ink
+      disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-quiet {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-card px-2.5 py-1.5
+      text-xs text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink;
+  }
+
+  /* 小号大写字标：用于分区说明、字段名 */
+  .label {
+    @apply text-[10px] font-medium uppercase tracking-[0.1em] text-ink-faint;
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  .hairline {
+    @apply h-px w-full bg-line;
   }
 }

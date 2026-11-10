@@ -3,52 +3,51 @@ import { computed } from 'vue'
 
 const props = defineProps<{ score: number | null; streaming?: boolean }>()
 
-const RADIUS = 26
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS
-
-const offset = computed(() => {
-  const value = props.score ?? 0
-  return CIRCUMFERENCE * (1 - Math.max(0, Math.min(100, value)) / 100)
+const tone = computed(() => {
+  if (props.score === null) return 'text-ink-faint'
+  if (props.score >= 80) return 'text-risk-low'
+  if (props.score >= 60) return 'text-risk-medium'
+  return 'text-risk-high'
 })
 
-const color = computed(() => {
-  if (props.score === null) return '#C7CCD6'
-  if (props.score >= 80) return '#30A46C'
-  if (props.score >= 60) return '#F5A524'
-  return '#E5484D'
+const barColor = computed(() => {
+  if (props.score === null) return 'bg-line-strong'
+  if (props.score >= 80) return 'bg-risk-low'
+  if (props.score >= 60) return 'bg-risk-medium'
+  return 'bg-risk-high'
 })
 
-const label = computed(() => (props.score === null ? '--' : String(props.score)))
+const width = computed(() => `${Math.max(0, Math.min(100, props.score ?? 0))}%`)
+
+const caption = computed(() => {
+  if (props.streaming) return '判定中'
+  if (props.score === null) return '待审查'
+  if (props.score >= 80) return '条款较规范'
+  if (props.score >= 60) return '有需谈判之处'
+  return '风险较集中'
+})
 </script>
 
 <template>
-  <div class="flex items-center gap-2.5">
-    <div class="relative h-[64px] w-[64px]">
-      <svg viewBox="0 0 64 64" class="h-full w-full -rotate-90">
-        <circle cx="32" cy="32" :r="RADIUS" fill="none" stroke="#EDF0F5" stroke-width="6" />
-        <circle
-          cx="32"
-          cy="32"
-          :r="RADIUS"
-          fill="none"
-          :stroke="color"
-          stroke-width="6"
-          stroke-linecap="round"
-          :stroke-dasharray="CIRCUMFERENCE"
-          :stroke-dashoffset="offset"
-          class="transition-all duration-700 ease-out"
-        />
-      </svg>
-      <div class="absolute inset-0 flex flex-col items-center justify-center">
-        <span class="text-[17px] font-semibold leading-none" :style="{ color }">{{ label }}</span>
-        <span class="mt-0.5 text-[9px] text-ink-faint">安全分</span>
+  <div class="flex items-end gap-4">
+    <div>
+      <p class="label">安全分</p>
+      <div class="mt-1 flex items-baseline gap-1">
+        <span class="num font-serif text-[34px] leading-none transition-colors duration-500" :class="tone">
+          {{ score === null ? '—' : score }}
+        </span>
+        <span class="num text-[11px] text-ink-faint">/100</span>
       </div>
     </div>
-    <div class="leading-tight">
-      <p class="text-xs text-ink-soft">满分 100</p>
-      <p class="mt-0.5 text-[11px] text-ink-faint">
-        {{ streaming ? '计算中…' : score === null ? '未开始' : score >= 60 ? '存在需谈判的点' : '风险较集中' }}
-      </p>
+    <div class="w-[92px] pb-1">
+      <div class="h-[2px] w-full bg-line">
+        <div
+          class="h-full transition-all duration-700 ease-calm"
+          :class="barColor"
+          :style="{ width }"
+        />
+      </div>
+      <p class="mt-1.5 text-[10px] text-ink-faint">{{ caption }}</p>
     </div>
   </div>
 </template>

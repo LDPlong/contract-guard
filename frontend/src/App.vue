@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ShieldCheck } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/reviewStore'
 
 const app = useAppStore()
@@ -19,7 +18,7 @@ const healthLabel = computed(() => {
   }
 })
 
-const healthColor = computed(() => {
+const healthTone = computed(() => {
   if (app.healthState === 'online') return app.health?.db ? 'bg-risk-low' : 'bg-risk-medium'
   if (app.healthState === 'checking') return 'bg-ink-faint'
   return 'bg-risk-high'
@@ -32,26 +31,29 @@ onMounted(() => {
 
 <template>
   <div class="flex min-h-full flex-col">
-    <header class="border-b border-[#E9EBF0] bg-white">
-      <div class="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <RouterLink to="/" class="flex items-center gap-2 text-ink no-underline">
-          <span class="flex h-7 w-7 items-center justify-center rounded-md bg-brand text-white">
-            <ShieldCheck :size="17" :stroke-width="2.2" />
+    <header class="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm">
+      <div class="mx-auto flex h-14 w-full max-w-[1240px] items-center justify-between px-4 sm:px-6">
+        <RouterLink to="/" class="group flex items-center gap-2.5 no-underline">
+          <!-- 印章式标识：不用图标库，用一个字更有辨识度 -->
+          <span
+            class="flex h-7 w-7 items-center justify-center bg-accent font-serif text-[15px] leading-none text-white transition-colors group-hover:bg-accent-deep"
+          >契</span>
+          <span class="flex items-baseline gap-2">
+            <span class="text-[13px] font-medium tracking-[0.04em] text-ink">ContractGuard</span>
+            <span class="hidden font-serif text-[12px] text-ink-faint sm:inline">合同风险审查</span>
           </span>
-          <span class="text-[15px] font-semibold tracking-tight">ContractGuard</span>
-          <span class="hidden text-xs text-ink-faint sm:inline">合同风险审查官</span>
         </RouterLink>
 
         <div class="flex items-center gap-3">
           <span
             v-if="app.isDemoMode"
-            class="rounded-full bg-risk-medium/10 px-2.5 py-0.5 text-xs font-medium text-[#8A5A00]"
-            title="DEMO_MODE=true：当前结果来自本地兜底数据，不代表真实模型输出"
+            class="rounded-card border border-risk-medium/40 px-2 py-0.5 text-[10px] tracking-wide text-risk-medium"
+            title="DEMO_MODE=true：当前结果来自本地兜底数据"
           >
-            演示模式（模拟数据）
+            演示模式
           </span>
-          <span class="flex items-center gap-1.5 text-xs text-ink-faint" :title="app.lastError">
-            <span class="h-1.5 w-1.5 rounded-full" :class="healthColor" />
+          <span class="flex items-center gap-1.5 text-[11px] text-ink-faint" :title="app.lastError">
+            <span class="h-1 w-1 rounded-full" :class="healthTone" />
             {{ healthLabel }}
           </span>
         </div>
@@ -62,10 +64,12 @@ onMounted(() => {
       <RouterView />
     </main>
 
-    <footer class="border-t border-[#E9EBF0] bg-white">
-      <div class="mx-auto w-full max-w-6xl px-4 py-5 text-xs leading-relaxed text-ink-faint sm:px-6">
-        本工具仅提供风险提示与修改方向，<strong class="font-medium text-ink-soft">不构成法律意见</strong>，
-        不替代执业律师。合同签署前请自行核实，重大事项请咨询专业律师。
+    <footer class="mt-auto border-t border-line">
+      <div
+        class="mx-auto flex w-full max-w-[1240px] flex-col gap-1.5 px-4 py-5 text-[11px] leading-relaxed text-ink-faint sm:flex-row sm:items-center sm:justify-between sm:px-6"
+      >
+        <p>本工具仅提供风险提示与修改方向，不构成法律意见，不替代执业律师。</p>
+        <p class="text-ink-faint/70">2026 第九届传智杯 · AI WEB 网页开发挑战赛</p>
       </div>
     </footer>
   </div>

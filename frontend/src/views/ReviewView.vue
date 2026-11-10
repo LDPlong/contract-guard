@@ -32,19 +32,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1240px] px-4 py-4 sm:px-6">
+  <div class="mx-auto w-full max-w-[1240px] px-4 py-5 sm:px-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
         <RouterLink
           to="/"
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-card border border-[#E3E6EC] bg-white text-ink-soft hover:border-brand/40 hover:text-brand"
+          class="flex h-8 w-8 shrink-0 items-center justify-center border border-line bg-white text-ink-soft transition-colors hover:border-line-strong hover:text-accent"
           aria-label="返回上传"
         >
           <ArrowLeft :size="15" />
         </RouterLink>
         <div class="min-w-0">
-          <p class="truncate text-sm font-medium text-ink">{{ title }}</p>
-          <p class="mt-0.5 text-[11px] text-ink-faint">
+          <p class="truncate font-serif text-[15px] text-ink">{{ title }}</p>
+          <p class="mt-1 text-[11px] text-ink-faint">
             {{ typeLabel }}
             <span v-if="store.document"> · {{ store.document.clauses.length }} 条条款</span>
           </p>
@@ -66,18 +66,18 @@ onBeforeUnmount(() => {
 
     <div
       v-if="store.error"
-      class="mt-3 flex items-start gap-2 rounded-card border border-risk-high/30 bg-risk-high/5 px-3 py-2"
+      class="mt-4 flex items-start gap-2 border border-risk-high/30 bg-risk-high/[0.04] px-3 py-2.5"
     >
       <TriangleAlert :size="14" class="mt-0.5 shrink-0 text-risk-high" />
       <div class="flex-1">
         <p class="text-[12px] text-ink">{{ store.error }}</p>
-        <p class="mt-0.5 text-[11px] text-ink-faint">
+        <p class="mt-1 text-[11px] text-ink-faint">
           已获取的结论仍然保留，可点击「重新审查」再试一次。
         </p>
       </div>
     </div>
 
-    <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(340px,2fr)]">
+    <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]">
       <div class="h-[calc(100vh-190px)] min-h-[420px]">
         <ClauseViewer
           :document-id="store.documentId"
@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
 
         <p
           v-if="store.summary"
-          class="rounded-card bg-white px-3 py-2 text-[12px] leading-relaxed text-ink-soft shadow-card"
+          class="border border-line bg-white px-3.5 py-2.5 text-[12px] leading-[1.8] text-ink-soft"
         >
           {{ store.summary }}
         </p>

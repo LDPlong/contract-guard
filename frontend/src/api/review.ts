@@ -1,4 +1,4 @@
-import { ApiError, getSessionId, request } from '@/api/http'
+import http, { ApiError, getSessionId, request } from '@/api/http'
 import type { DocumentDetail, HealthStatus, ReviewDetail, StreamEvent, UploadResult } from '@/types'
 
 /** 8.10 健康检查（不走 Envelope） */
@@ -33,14 +33,17 @@ export async function fetchReview(reviewId: string): Promise<ReviewDetail> {
   return request<ReviewDetail>({ url: `/reviews/${reviewId}`, method: 'GET' })
 }
 
-/** 8.3 原始 PDF，交给 pdf.js 渲染 */
+/**
+ * 8.3 原始 PDF，交给 pdf.js 渲染。
+ * 注意：该接口返回二进制流，**不套 {code,message,data} 信封**，
+ * 不能走 request() 统一解包，否则会把 ArrayBuffer 当成响应体去读 .code 而误抛错。
+ */
 export async function fetchDocumentFile(documentId: string): Promise<ArrayBuffer> {
-  return request<ArrayBuffer>({
-    url: `/documents/${documentId}/file`,
-    method: 'GET',
+  const resp = await http.get(`/documents/${documentId}/file`, {
     responseType: 'arraybuffer',
     timeout: 60_000,
   })
+  return resp.data as ArrayBuffer
 }
 
 export const SSE_ENDPOINT = (documentId: string) => `/api/v1/documents/${documentId}/review`

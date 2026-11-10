@@ -5,6 +5,12 @@ const SESSION_KEY = 'cg_session_id'
 
 /** 匿名 session：仅用于隔离历史记录，不做身份认证（文档 6.1 约定 3） */
 export function getSessionId(): string {
+  // 仅开发环境：URL 带 ?sid= 时固定会话，方便联调与截图（生产构建里这段被摇掉）
+  if (import.meta.env.DEV) {
+    const override = new URLSearchParams(location.search).get('sid')
+    if (override) localStorage.setItem(SESSION_KEY, override)
+  }
+
   let sid = localStorage.getItem(SESSION_KEY)
   if (!sid) {
     sid =
