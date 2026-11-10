@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { AlertCircle, ArrowRight, FileText, Loader2 } from 'lucide-vue-next'
+import { AlertCircle, ArrowRight, Check, FileText, Loader2 } from 'lucide-vue-next'
 import { uploadDocument } from '@/api/review'
 import SectionCollapse from '@/components/SectionCollapse.vue'
 
@@ -10,7 +10,8 @@ const router = useRouter()
 const MAX_MB = 20
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
-const uploading = ref(false)
+const phase = ref<'idle' | 'uploading' | 'done'>('idle')
+const uploading = computed(() => phase.value === 'uploading')
 const errorMsg = ref('')
 const selected = ref<File | null>(null)
 
@@ -166,17 +167,25 @@ function onDrop(e: DragEvent) {
 }
 
 async function submit() {
-  if (!selected.value || uploading.value) return
-  uploading.value = true
+  if (!selected.value || phase.value === 'uploading') return
+  phase.value = 'uploading'
   errorMsg.value = ''
   try {
     const result = await uploadDocument(selected.value)
+    phase.value = 'done'
+    // 让"已完成"状态停留一瞬再跳转，用户能确认操作已生效
+    await new Promise((resolve) => window.setTimeout(resolve, 420))
     await router.push({ name: 'review', params: { docId: result.document_id } })
   } catch (err) {
     errorMsg.value = err instanceof Error ? err.message : '上传失败，请重试'
-  } finally {
-    uploading.value = false
+    phase.value = 'idle'
   }
+}
+
+// 上传区内衬的网格底纹，只在悬停/拖入时浮现
+const GRID = {
+  backgroundImage: 'radial-gradient(circle, #D8D3C6 1px, transparent 1px)',
+  backgroundSize: '18px 18px',
 }
 </script>
 
@@ -184,7 +193,7 @@ async function submit() {
   <div class="mx-auto w-full max-w-[1080px] px-4 sm:px-6">
     <section class="pt-10 sm:pt-14">
       <h1
-        class="max-w-[620px] font-serif text-[26px] leading-[1.5] tracking-tightest text-ink sm:text-[32px]"
+        class="max-w-[780px] font-serif text-[26px] leading-[1.45] tracking-tightest text-ink sm:text-[30px]"
       >
         上传合同 PDF，逐条对照法条，输出风险等级、依据原文与修改方向。
       </h1>
@@ -193,7 +202,7 @@ async function submit() {
     <!-- 上传区：首屏主体 -->
     <section class="mt-7">
       <div
-        class="group relative flex min-h-[340px] cursor-pointer flex-col items-center justify-center border border-dashed px-6 py-14 text-center transition-colors duration-200 sm:min-h-[400px]"
+        class="group relative flex min-h-[340px] cursor-pointer flex-col items-center justify-center overflow-hidden border border-dashed px-6 py-14 text-center transition-colors duration-200 sm:min-h-[400px]"
         :class="
           dragging
             ? 'border-accent bg-accent-wash/60'
@@ -208,8 +217,16 @@ async function submit() {
         @dragleave.prevent="dragging = false"
         @drop.prevent="onDrop"
       >
+        <!-- 网格底纹：静态时不可见，悬停淡入，拖入时满显 -->
         <span
-          class="flex h-14 w-14 items-center justify-center border border-line bg-paper text-ink-soft transition-colors group-hover:border-accent/40 group-hover:text-accent"
+          class="pointer-events-none absolute inset-0 transition-opacity duration-300"
+          :class="dragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'"
+          :style="GRID"
+        />
+
+        <span
+          class="relative flex h-14 w-14 items-center justify-center border border-line bg-paper text-ink-soft transition-all duration-300 ease-calm group-hover:border-accent/40 group-hover:text-accent"
+          :class="dragging ? '-translate-y-1 scale-105 border-accent/60 text-accent' : ''"
         >
           <FileText :size="24" :stroke-width="1.5" />
         </span>
@@ -219,16 +236,25 @@ async function submit() {
           或点击选择文件 · 支持文字版 PDF，≤ {{ MAX_MB }}MB、≤ 80 页
         </p>
 
-        <p v-if="selected" class="mt-5 flex items-center gap-2 text-[12px] text-ink-soft">
+        <p
+          v-if="selected"
+          class="animate-rise mt-5 flex items-center gap-2 border border-line bg-paper px-2.5 py-1.5 text-[12px] text-ink-soft"
+        >
           <FileText :size="13" class="text-ink-faint" />
           <span class="max-w-[280px] truncate">{{ selected.name }}</span>
           <span class="num text-ink-faint">{{ selectedSize }} MB</span>
         </p>
 
-        <button class="btn-primary mt-6" :disabled="!selected || uploading" @click.stop="submit">
-          <Loader2 v-if="uploading" :size="14" class="animate-spin" />
-          <span>{{ uploading ? '解析中' : '开始审查' }}</span>
-          <ArrowRight v-if="!uploading" :size="14" />
+        <button
+          class="btn-primary relative mt-6 min-w-[124px] overflow-hidden"
+          :class="phase === 'done' ? '!bg-risk-low' : ''"
+          :disabled="(!selected || uploading) && phase !== 'done'"
+          @click.stop="submit"
+        >
+          <Loader2 v-if="phase === 'uploading'" :size="14" class="animate-spin" />
+          <Check v-else-if="phase === 'done'" :size="14" />
+          <span>{{ phase === 'uploading' ? '解析中' : phase === 'done' ? '已受理' : '开始审查' }}</span>
+          <ArrowRight v-if="phase === 'idle'" :size="14" />
         </button>
 
         <p

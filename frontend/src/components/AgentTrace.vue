@@ -45,7 +45,9 @@ const percent = computed(() => {
                 ? 'bg-accent'
                 : step.status === 'error'
                   ? 'bg-risk-high'
-                  : 'bg-line-strong animate-pulseRing',
+                  : step.status === 'running'
+                    ? 'bg-accent/60 animate-pulseRing'
+                    : 'bg-line',
             ]"
           />
           <span
@@ -54,7 +56,10 @@ const percent = computed(() => {
           />
         </span>
         <div class="min-w-0 flex-1 pb-0.5">
-          <p class="text-[11.5px] leading-tight text-ink-soft">{{ step.title }}</p>
+          <p
+            class="text-[11.5px] leading-tight"
+            :class="step.status === 'pending' ? 'text-ink-faint' : 'text-ink-soft'"
+          >{{ step.title }}</p>
           <p class="mt-0.5 truncate text-[11px] leading-tight text-ink-faint" :title="step.detail">
             {{ step.detail }}
           </p>

@@ -8,8 +8,11 @@ export interface TraceStep {
   key: StreamStep
   title: string
   detail: string
-  status: 'running' | 'done' | 'error'
+  status: 'pending' | 'running' | 'done' | 'error'
 }
+
+/** 审查固定四段：开始就全部列出，避免步骤条一段段往下长 */
+export const STEP_ORDER: StreamStep[] = ['plan', 'gate', 'judge', 'aggregate']
 
 const STEP_TITLES: Record<string, string> = {
   plan: '读取审查清单',
@@ -79,10 +82,19 @@ export const useReviewStore = defineStore('review', {
       this.steps.push({ key, title: STEP_TITLES[key] ?? key, detail, status })
     },
 
+    _resetSteps() {
+      this.steps = STEP_ORDER.map((key) => ({
+        key,
+        title: STEP_TITLES[key] ?? key,
+        detail: '等待中',
+        status: 'pending' as const,
+      }))
+    },
+
     async start() {
       if (this.phase === 'reviewing') return
       this.phase = 'reviewing'
-      this.steps = []
+      this._resetSteps()
       this.findings = []
       this.score = null
       this.summary = ''
@@ -117,6 +129,12 @@ export const useReviewStore = defineStore('review', {
                 done: Number(data.done ?? 0),
                 total: Number(data.total ?? 0),
               }
+              // 有进度回来就说明已经在逐条判定
+              this._upsertStep(
+                'judge',
+                `已判定 ${this.progress.done}/${this.progress.total} 项`,
+                'running',
+              )
               break
             }
             case 'done': {
@@ -125,7 +143,11 @@ export const useReviewStore = defineStore('review', {
               this.reviewId = (data.review_id as string) ?? this.reviewId
               const finalFindings = data.findings as Finding[] | undefined
               if (Array.isArray(finalFindings)) this.findings = finalFindings
-              this.steps = this.steps.map((s) => ({ ...s, status: 'done' }))
+              this.steps = this.steps.map((s) => ({
+                ...s,
+                detail: s.key === 'aggregate' ? this.summary || '已完成' : s.detail,
+                status: 'done',
+              }))
               this.phase = 'done'
               break
             }

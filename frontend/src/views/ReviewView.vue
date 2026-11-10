@@ -34,8 +34,22 @@ const stats = computed(() => {
 const riskyClauses = computed(() =>
   store.findings
     .filter((f) => f.clause_id)
-    .map((f) => ({ id: f.clause_id as string, no: f.clause_no ?? '未编号', level: f.risk_level })),
+    .map((f) => ({
+      id: f.clause_id as string,
+      no: f.clause_no ?? '未编号',
+      level: f.risk_level,
+      title: f.title,
+      confidence: f.confidence,
+      basis: f.legal_basis[0]?.article ?? '',
+    })),
 )
+
+const LEVEL_TEXT: Record<string, string> = {
+  high: '高风险',
+  medium: '中风险',
+  low: '低风险',
+  none: '待复核',
+}
 
 const LEVEL_DOT: Record<string, string> = {
   high: 'bg-risk-high',
@@ -115,20 +129,35 @@ onBeforeUnmount(() => {
 
       <div class="flex flex-1 flex-wrap items-center gap-1.5">
         <span class="label mr-1">命中条款</span>
-        <button
-          v-for="c in riskyClauses"
-          :key="c.id"
-          class="flex items-center gap-1.5 border px-2 py-0.5 text-[11px] transition-colors"
-          :class="
-            store.activeClauseId === c.id
-              ? 'border-ink bg-ink text-white'
-              : 'border-line text-ink-soft hover:border-line-strong'
-          "
-          @click="store.select(c.id)"
-        >
-          <span class="h-1 w-1 rounded-full" :class="LEVEL_DOT[c.level]" />
-          {{ c.no }}
-        </button>
+        <div v-for="c in riskyClauses" :key="c.id" class="group/chip relative">
+          <button
+            class="flex items-center gap-1.5 border px-2 py-0.5 text-[11px] transition-colors"
+            :class="
+              store.activeClauseId === c.id
+                ? 'border-ink bg-ink text-white'
+                : 'border-line text-ink-soft hover:border-line-strong'
+            "
+            @click="store.select(c.id)"
+          >
+            <span class="h-1 w-1 rounded-full" :class="LEVEL_DOT[c.level]" />
+            {{ c.no }}
+          </button>
+
+          <!-- 悬停预览：不必点进去就能看到结论 -->
+          <div
+            class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-[220px] -translate-x-1/2 border border-line bg-white p-2.5 opacity-0 shadow-lift transition-all duration-150 ease-calm group-hover/chip:-translate-y-0.5 group-hover/chip:opacity-100"
+          >
+            <p class="flex items-center gap-1.5 text-[10px]">
+              <span class="h-1 w-1 rounded-full" :class="LEVEL_DOT[c.level]" />
+              <span class="text-ink-faint">{{ LEVEL_TEXT[c.level] ?? c.level }}</span>
+              <span v-if="c.basis" class="num text-ink-faint">· {{ c.basis }}</span>
+            </p>
+            <p class="mt-1 text-[11.5px] leading-snug text-ink">{{ c.title }}</p>
+            <p class="num mt-1 text-[10px] text-ink-faint">
+              置信度 {{ Math.round(c.confidence * 100) }}%
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
