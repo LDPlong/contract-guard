@@ -55,6 +55,11 @@ onMounted(() => {
             class="text-ink-soft transition-colors hover:text-ink"
             active-class="!text-ink"
           >法规库</RouterLink>
+          <RouterLink
+            to="/guide"
+            class="text-ink-soft transition-colors hover:text-ink"
+            active-class="!text-ink"
+          >使用说明</RouterLink>
         </nav>
 
         <div class="flex items-center gap-3">

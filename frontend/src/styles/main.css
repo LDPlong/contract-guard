@@ -58,18 +58,20 @@
     @apply rounded-card border border-line bg-paper;
   }
 
+  /* 主按钮：实心近黑 pill，对比度拉满；不用藏青是因为深色块更"可点" */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-card bg-accent px-5 py-2.5
-      text-sm font-medium tracking-wide text-white transition-all duration-200 ease-calm
-      hover:bg-accent-deep active:translate-y-px
-      disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-2.5
+      text-[13px] font-medium tracking-wide text-white transition-all duration-200 ease-calm
+      hover:bg-black hover:shadow-lift active:translate-y-px
+      disabled:cursor-not-allowed disabled:bg-ink/35 disabled:shadow-none;
   }
 
+  /* 次按钮：白底描边 pill，与主按钮成对出现 */
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-card border border-line
-      bg-white px-4 py-2 text-sm text-ink-soft transition-colors duration-200
-      hover:border-line-strong hover:text-ink
-      disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line-strong
+      bg-white px-5 py-2.5 text-[13px] text-ink transition-colors duration-200
+      hover:border-ink hover:bg-paper
+      disabled:cursor-not-allowed disabled:opacity-45;
   }
 
   .btn-quiet {
