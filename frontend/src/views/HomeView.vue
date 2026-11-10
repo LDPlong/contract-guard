@@ -47,9 +47,11 @@ function onPrimary() {
 
 function acceptFile(file: File) {
   errorMsg.value = ''
-  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-  if (!isPdf) {
-    errorMsg.value = '当前仅支持文字版 PDF。图片合同的多模态解析尚未开启。'
+  const name = file.name.toLowerCase()
+  const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf')
+  const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png)$/.test(name)
+  if (!isPdf && !isImage) {
+    errorMsg.value = '请上传 PDF，或合同的照片 / 扫描件（JPG、PNG）。'
     return
   }
   if (file.size > MAX_MB * 1024 * 1024) {
@@ -133,7 +135,7 @@ async function submit() {
 
         <p class="relative mt-5 font-serif text-[16px] text-ink">把合同 PDF 拖到这里</p>
         <p class="relative mt-1.5 text-[11.5px] text-ink-faint">
-          也可以点击下方按钮选择 · ≤ {{ MAX_MB }}MB、≤ 80 页
+          也可以点击下方按钮选择 · PDF / JPG / PNG · ≤ {{ MAX_MB }}MB
         </p>
 
         <p
@@ -148,7 +150,7 @@ async function submit() {
         <input
           ref="fileInput"
           type="file"
-          accept="application/pdf,.pdf"
+          accept="application/pdf,.pdf,image/jpeg,image/png"
           class="hidden"
           @change="onFileChange"
         />

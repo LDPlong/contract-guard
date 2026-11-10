@@ -27,6 +27,7 @@ class ClauseOut(BaseModel):
 class DocumentDetailOut(BaseModel):
     id: str
     filename: str
+    mime_type: str
     contract_type: str
     status: str
     pages: list[PageOut]
@@ -61,6 +62,7 @@ def to_detail(doc: Document) -> DocumentDetailOut:
     return DocumentDetailOut(
         id=doc.id,
         filename=doc.filename,
+        mime_type=doc.mime_type or "application/pdf",
         contract_type=doc.contract_type or "unknown",
         status=doc.status,
         pages=[PageOut(**p) for p in pages],

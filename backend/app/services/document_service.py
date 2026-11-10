@@ -29,6 +29,7 @@ from app.core.logging import get_logger
 from app.models.base import SessionLocal
 from app.models.document import Clause, Document
 from app.services.parsing import detect, parse_pdf, split_clauses
+from app.services.parsing.vision_parser import parse_image
 from app.services.storage import SavedFile, remove_saved_file
 
 log = get_logger(__name__)
@@ -93,26 +94,53 @@ async def process_document(document_id: str) -> ProcessResult:
         doc.status = "parsing"
         await session.commit()
 
-        try:
-            parsed = await asyncio.to_thread(parse_pdf, doc.file_path)
-        except ParseFailed as exc:
-            doc.status = "failed"
-            doc.error_msg = str(exc)
-            await session.commit()
-            log.warning("parse failed", extra={"document_id": document_id})
-            return ProcessResult("failed", ContractType.UNKNOWN, "unknown", 0, 0, str(exc))
+        is_image = (doc.mime_type or "").startswith("image/")
 
-        clauses = split_clauses(parsed)
+        if is_image:
+            # 图片合同：多模态模型直接读图，没有坐标，只能做条款级定位
+            try:
+                vision = await parse_image(doc.file_path)
+            except ValueError as exc:
+                doc.status = "failed"
+                doc.error_msg = f"图片识别失败：{exc}"
+                await session.commit()
+                log.warning("vision parse failed", extra={"document_id": document_id})
+                return ProcessResult(
+                    "failed", ContractType.UNKNOWN, "unknown", 0, 0, doc.error_msg
+                )
+            clauses = vision.clauses
+            full_text = vision.full_text
+            page_count = 1
+            pages_payload = [{"page_no": 1, "width": 0, "height": 0}]
+            vision_guess = vision.contract_type
+        else:
+            try:
+                parsed = await asyncio.to_thread(parse_pdf, doc.file_path)
+            except ParseFailed as exc:
+                doc.status = "failed"
+                doc.error_msg = str(exc)
+                await session.commit()
+                log.warning("parse failed", extra={"document_id": document_id})
+                return ProcessResult("failed", ContractType.UNKNOWN, "unknown", 0, 0, str(exc))
+            clauses = split_clauses(parsed)
+            full_text = parsed.full_text
+            page_count = parsed.page_count
+            pages_payload = [
+                {"page_no": p.page_no, "width": p.width, "height": p.height}
+                for p in parsed.pages
+            ]
+            vision_guess = None
+
         user_choice = doc.contract_type if doc.type_source == "user" else None
-        detection = detect(parsed.full_text, user_choice=user_choice)
+        detection = detect(full_text, user_choice=user_choice)
+        if not detection.confident and vision_guess in SUPPORTED_CONTRACT_TYPES:
+            detection.contract_type = vision_guess
+            detection.source = "llm"
 
         doc.contract_type = detection.contract_type
         doc.type_source = detection.source
-        doc.page_count = parsed.page_count
-        doc.pages_json = json.dumps(
-            [{"page_no": p.page_no, "width": p.width, "height": p.height} for p in parsed.pages],
-            ensure_ascii=False,
-        )
+        doc.page_count = page_count
+        doc.pages_json = json.dumps(pages_payload, ensure_ascii=False)
 
         for item in clauses:
             session.add(
@@ -136,7 +164,7 @@ async def process_document(document_id: str) -> ProcessResult:
             status="parsed",
             contract_type=detection.contract_type,
             type_source=detection.source,
-            page_count=parsed.page_count,
+            page_count=page_count,
             clause_count=len(clauses),
         )
 
@@ -154,13 +182,13 @@ async def get_document(session: AsyncSession, document_id: str, session_id: str)
 
 async def get_file_path(
     session: AsyncSession, document_id: str, session_id: str
-) -> tuple[Path, str]:
+) -> tuple[Path, str, str]:
     """返回 (磁盘路径, 原始文件名)。只按 id 查库取路径，绝不拼接用户输入。"""
     doc = await get_document(session, document_id, session_id)
     path = Path(doc.file_path)
     if not path.is_file():
         raise BizError(ErrorCode.NOT_FOUND, "原始文件已删除")
-    return path, doc.filename
+    return path, doc.filename, doc.mime_type or "application/pdf"
 
 
 async def delete_document(session: AsyncSession, document_id: str, session_id: str) -> bool:

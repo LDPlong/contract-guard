@@ -159,8 +159,10 @@ async def get_document_file(
     session: AsyncSession = Depends(get_session),
 ):
     session_id = _require_session(x_session_id)
-    path, _filename = await document_service.get_file_path(session, document_id, session_id)
-    return FileResponse(path, media_type="application/pdf")
+    path, _filename, mime = await document_service.get_file_path(
+        session, document_id, session_id
+    )
+    return FileResponse(path, media_type=mime)
 
 
 @router.delete("/{document_id}", summary="删除文档（8.7）")

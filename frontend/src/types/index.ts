@@ -60,6 +60,8 @@ export interface Clause {
 export interface DocumentDetail {
   id: string
   filename: string
+  /** 原始文件类型；图片合同不支持 PDF 渲染 */
+  mime_type: string
   contract_type: ContractType
   status: DocumentStatus
   pages: PageInfo[]

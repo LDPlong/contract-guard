@@ -220,6 +220,51 @@ class LLMClient:
             attempts=result.attempts + retried.attempts,
         )
 
+    async def chat_json_with_image(
+        self,
+        system: str,
+        user: str,
+        image_data_url: str,
+        *,
+        max_tokens: int = 2000,
+    ) -> LLMResult:
+        """多模态：文本 + 图片一起送，要求返回 JSON（图片合同解析用）。"""
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user},
+                    {"type": "image_url", "image_url": {"url": image_data_url}},
+                ],
+            },
+        ]
+        result = await self.chat(messages, json_mode=True, max_tokens=max_tokens)
+        if result.ok:
+            return result
+
+        log.warning("vision json parse failed, retry once: %s", text_digest(result.content))
+        messages.append({"role": "assistant", "content": result.content[:500]})
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    "上面的输出不是合法 JSON。"
+                    "请只输出约定结构的 JSON 对象，不要任何其他文字。"
+                ),
+            }
+        )
+        retried = await self.chat(messages, json_mode=True, max_tokens=max_tokens)
+        return LLMResult(
+            content=retried.content,
+            parsed=retried.parsed,
+            model=retried.model,
+            prompt_tokens=result.prompt_tokens + retried.prompt_tokens,
+            completion_tokens=result.completion_tokens + retried.completion_tokens,
+            latency_ms=result.latency_ms + retried.latency_ms,
+            attempts=result.attempts + retried.attempts,
+        )
+
     async def ping(self, max_tokens: int = 16) -> str:
         """连通性自检：只发一句最小请求，不消耗额度。"""
         result = await self.chat(
