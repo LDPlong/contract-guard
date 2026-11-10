@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { ArrowLeft, Printer, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import AgentTrace from '@/components/AgentTrace.vue'
 import ClauseViewer from '@/components/ClauseViewer.vue'
 import FindingPanel from '@/components/FindingPanel.vue'
+import ReportSheet from '@/components/ReportSheet.vue'
 import SafetyScore from '@/components/SafetyScore.vue'
 import { useReviewStore } from '@/stores/review'
 
@@ -67,10 +68,22 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   store.reset()
 })
+
+const canExport = computed(() => store.phase === 'done' && store.findings.length > 0)
+
+/** 走浏览器打印为 PDF：临时改标题，存下来的文件名才是报告名而不是"合同风险审查" */
+function exportReport() {
+  if (!canExport.value) return
+  const original = document.title
+  const name = store.document?.filename?.replace(/\.[^.]+$/, '') ?? '合同'
+  document.title = `${name}-风险审查报告`
+  window.print()
+  document.title = original
+}
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1240px] px-4 py-5 sm:px-6">
+  <div class="mx-auto w-full max-w-[1240px] px-4 py-5 sm:px-6 print:hidden">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
         <RouterLink
@@ -91,6 +104,15 @@ onBeforeUnmount(() => {
 
       <div class="flex items-center gap-4">
         <SafetyScore :score="store.score" :streaming="store.isStreaming" />
+        <button
+          v-if="canExport"
+          class="btn-ghost text-xs"
+          title="用浏览器另存为 PDF，内容与本页一致"
+          @click="exportReport"
+        >
+          <Printer :size="13" />
+          导出报告
+        </button>
         <button
           class="btn-ghost text-xs"
           :disabled="store.isStreaming || store.phase === 'loading'"
@@ -198,4 +220,13 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </div>
+
+  <!-- 打印时才出现：屏幕上的双栏布局带滚动容器，直接打印会被截断 -->
+  <ReportSheet
+    class="hidden px-[2mm] py-[2mm] print:block"
+    :document="store.document"
+    :findings="store.findings"
+    :score="store.score"
+    :summary="store.summary"
+  />
 </template>

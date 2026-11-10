@@ -31,7 +31,7 @@ onMounted(() => {
 
 <template>
   <div class="flex min-h-full flex-col">
-    <header class="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm">
+    <header class="app-chrome sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm">
       <div class="mx-auto flex h-14 w-full max-w-[1240px] items-center justify-between px-4 sm:px-6">
         <RouterLink to="/" class="group flex items-center gap-2.5 no-underline">
           <!-- 印章式标识：不用图标库，用一个字更有辨识度 -->
@@ -82,7 +82,7 @@ onMounted(() => {
       <RouterView />
     </main>
 
-    <footer class="mt-auto border-t border-line">
+    <footer class="app-chrome mt-auto border-t border-line">
       <div
         class="mx-auto flex w-full max-w-[1240px] items-center justify-center px-4 py-5 text-[11px] leading-relaxed text-ink-faint sm:px-6"
       >

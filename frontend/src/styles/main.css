@@ -93,3 +93,28 @@
     @apply h-px w-full bg-line;
   }
 }
+
+/*
+ * 打印：审查页会切到 ReportSheet（见 ReviewView），屏幕上的双栏布局整体隐藏。
+ * 分页由浏览器控制，这里只指定纸张、边距与避免条文被切断。
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .app-chrome {
+    display: none !important;
+  }
+
+  .report-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
