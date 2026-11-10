@@ -84,10 +84,9 @@ onMounted(() => {
 
     <footer class="mt-auto border-t border-line">
       <div
-        class="mx-auto flex w-full max-w-[1240px] flex-col gap-1.5 px-4 py-5 text-[11px] leading-relaxed text-ink-faint sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        class="mx-auto flex w-full max-w-[1240px] items-center justify-center px-4 py-5 text-[11px] leading-relaxed text-ink-faint sm:px-6"
       >
         <p>本工具仅提供风险提示与修改方向，不构成法律意见，不替代执业律师。</p>
-        <p class="text-ink-faint/70">2026 第九届传智杯 · AI WEB 网页开发挑战赛</p>
       </div>
     </footer>
   </div>

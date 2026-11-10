@@ -22,6 +22,11 @@ from app.services.rag.retriever import Retriever
 log = get_logger(__name__)
 
 MAX_CONCURRENT_JUDGE = 3
+CONTRACT_LABEL = {
+    "lease": "房屋租赁",
+    "labor": "劳动",
+    "prepaid": "培训贷 / 预付卡",
+}
 LEGAL_QUOTE_CHARS = 80
 VALID_LEVELS = {RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.LOW, RiskLevel.NONE}
 
@@ -284,7 +289,10 @@ async def run_review(
         "data": {
             "step": "plan",
             "status": "running",
-            "message": f"加载审查清单 {board.version}，共 {len(board)} 项",
+            "message": (
+                f"已识别为{CONTRACT_LABEL.get(board.contract_type, '')}合同，"
+                f"共 {len(board)} 项需要核对"
+            ),
         },
     }
 
@@ -307,8 +315,8 @@ async def run_review(
             "step": "gate",
             "status": "done",
             "message": (
-                f"条款预筛：{len(clauses)} 条条款 → {len(plan)} 项进入判定，"
-                f"{len(skipped)} 项不适用"
+                f"从 {len(clauses)} 条条款中匹配到 {len(plan)} 处需要核对"
+                + (f"，{len(skipped)} 项不涉及" if skipped else "")
             ),
             "skipped_items": skipped,
         },

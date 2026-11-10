@@ -23,9 +23,9 @@ const primaryLabel = computed(() => {
 })
 
 const facts = [
-  ['支持', '房屋租赁 · 劳动 · 培训贷'],
-  ['法条库', '民法典 1260 · 劳动合同法 98'],
-  ['格式', '文字版 PDF · ≤ 20MB'],
+  ['合同类型', '房屋租赁 / 劳动 / 培训贷'],
+  ['文件处理', '仅存本次会话，可随时删除'],
+  ['结论依据', '法条编号 + 原文引用'],
 ]
 
 const GRID = {
@@ -92,15 +92,11 @@ async function submit() {
   <div class="mx-auto w-full max-w-[880px] px-4 sm:px-6">
     <!-- 主视觉：居中，只留一句话和两个动作 -->
     <section class="pt-16 text-center sm:pt-24">
-      <p class="text-[12px] text-accent">面向个人 · 三类高风险合同</p>
-      <h1
-        class="mx-auto mt-4 max-w-[680px] font-serif text-[28px] leading-[1.4] tracking-tightest text-ink sm:text-[38px]"
-      >
-        上传合同 PDF，逐条对照法条，<br class="hidden sm:block" />
-        输出风险等级与修改方向。
+      <h1 class="font-serif text-[30px] leading-tight tracking-tightest text-ink sm:text-[36px]">
+        合同风险审查
       </h1>
-      <p class="mx-auto mt-4 max-w-[520px] text-[12.5px] leading-[1.9] text-ink-soft">
-        每条结论绑定法条编号与原文引用，可点开核对；检索不到依据的一律标为待复核。
+      <p class="mx-auto mt-4 max-w-[480px] text-[12.5px] leading-[1.9] text-ink-soft">
+        上传合同 PDF，自动识别类型，逐条核对并指出有风险的条款。
       </p>
     </section>
 
@@ -137,7 +133,7 @@ async function submit() {
 
         <p class="relative mt-5 font-serif text-[16px] text-ink">把合同 PDF 拖到这里</p>
         <p class="relative mt-1.5 text-[11.5px] text-ink-faint">
-          或点击下方按钮选择文件 · ≤ {{ MAX_MB }}MB、≤ 80 页
+          也可以点击下方按钮选择 · ≤ {{ MAX_MB }}MB、≤ 80 页
         </p>
 
         <p

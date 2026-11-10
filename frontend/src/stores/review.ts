@@ -15,12 +15,12 @@ export interface TraceStep {
 export const STEP_ORDER: StreamStep[] = ['plan', 'gate', 'judge', 'aggregate']
 
 const STEP_TITLES: Record<string, string> = {
-  plan: '读取审查清单',
-  gate: '条款预筛',
-  retrieve: '检索法条',
-  judge: '风险判定',
-  aggregate: '汇总评分',
-  persist: '写入结果',
+  plan: '读取合同',
+  gate: '匹配审查项',
+  retrieve: '查询法条',
+  judge: '逐条核对',
+  aggregate: '汇总结果',
+  persist: '保存结果',
 }
 
 const RISK_ORDER: Record<RiskLevel, number> = { high: 3, medium: 2, low: 1, none: 0 }
@@ -86,7 +86,7 @@ export const useReviewStore = defineStore('review', {
       this.steps = STEP_ORDER.map((key) => ({
         key,
         title: STEP_TITLES[key] ?? key,
-        detail: '等待中',
+        detail: '',
         status: 'pending' as const,
       }))
     },

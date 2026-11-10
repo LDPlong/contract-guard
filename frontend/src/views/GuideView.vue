@@ -126,7 +126,7 @@ const LEVEL_TONE: Record<string, string> = {
       <p class="label">Usage</p>
       <h1 class="mt-2 font-serif text-[26px] leading-tight text-ink">使用说明</h1>
       <p class="mt-2 max-w-[560px] text-[12px] leading-[1.9] text-ink-soft">
-        审查清单、判定口径、法条覆盖范围与当前限制。想直接开始，回到首页上传合同即可。
+        审查范围、风险等级的含义，以及目前不支持的情况。
       </p>
     </header>
 
@@ -135,7 +135,7 @@ const LEVEL_TONE: Record<string, string> = {
       <p class="label">01</p>
       <h2 class="mt-2 font-serif text-[19px] text-ink">审查清单</h2>
       <p class="mt-1.5 max-w-[600px] text-[12px] leading-[1.9] text-ink-soft">
-        清单固定、可评测。每项都有对应的风险规则与法条依据，不做开放式自由审查。
+        每类合同固定核对以下条目，逐项检查，不遗漏也不额外发挥。
       </p>
 
       <div class="mt-5 grid gap-px bg-line sm:grid-cols-3">
@@ -161,9 +161,9 @@ const LEVEL_TONE: Record<string, string> = {
     <!-- 示例 -->
     <section class="border-b border-line py-8">
       <p class="label">02</p>
-      <h2 class="mt-2 font-serif text-[19px] text-ink">示例：常见坑条款</h2>
+      <h2 class="mt-2 font-serif text-[19px] text-ink">常见问题条款</h2>
       <p class="mt-1.5 max-w-[600px] text-[12px] leading-[1.9] text-ink-soft">
-        下面是三类合同里常见的写法，以及它会被判成什么、依据是哪一条。
+        三类合同里最容易出问题的写法，以及它的依据。
       </p>
 
       <div class="mt-5 space-y-px bg-line">
@@ -183,9 +183,9 @@ const LEVEL_TONE: Record<string, string> = {
     <!-- 结论说明 -->
     <section class="border-b border-line py-8">
       <p class="label">03</p>
-      <h2 class="mt-2 font-serif text-[19px] text-ink">结论怎么读</h2>
+      <h2 class="mt-2 font-serif text-[19px] text-ink">风险等级</h2>
       <p class="mt-1.5 max-w-[600px] text-[12px] leading-[1.9] text-ink-soft">
-        每个结论带风险等级、依据原文和置信度。置信度低于 0.6 的折叠为待复核，不计入评分。
+        结论分高、中、低三级。置信度低于 0.6 的会标为待复核，请对照原文确认。
       </p>
 
       <div class="mt-5 grid gap-px bg-line sm:grid-cols-3">
@@ -196,7 +196,7 @@ const LEVEL_TONE: Record<string, string> = {
       </div>
 
       <div class="mt-3 border border-line bg-white px-4 py-3.5">
-        <p class="label">不做的事</p>
+        <p class="label">适用范围</p>
         <ul class="mt-2 space-y-1.5">
           <li
             v-for="line in boundaries"
