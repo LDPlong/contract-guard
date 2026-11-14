@@ -20,6 +20,7 @@ from sqlalchemy.orm import selectinload
 from app.core.constants import ContractType, ErrorCode, RiskLevel
 from app.core.errors import BizError
 from app.core.logging import get_logger
+from app.core.sse import sse_frame
 from app.models.base import SessionLocal
 from app.models.document import Clause as ClauseORM
 from app.models.document import Document
@@ -38,10 +39,6 @@ llm_client_factory = LLMClient
 retriever_factory = Retriever
 
 
-def sse_frame(event: str, data: dict) -> str:
-    """SSE 帧：event + 单行 data。data 内不允许出现裸换行。"""
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    return f"event: {event}\ndata: {payload}\n\n"
 
 
 def _to_dataclass(rows: list[ClauseORM]) -> list[Clause]:

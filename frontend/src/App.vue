@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import AssistantDock from '@/components/AssistantDock.vue'
 import { useAppStore } from '@/stores/reviewStore'
 
 const app = useAppStore()
@@ -81,6 +82,8 @@ onMounted(() => {
     <main class="flex-1">
       <RouterView />
     </main>
+
+    <AssistantDock />
 
     <footer class="app-chrome mt-auto border-t border-line">
       <div

@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.v1 import documents, health, knowledge, reviews
+from app.api.v1 import assistant, documents, health, knowledge, reviews
 from app.core.config import get_settings
 from app.core.constants import ErrorCode
 from app.core.errors import BizError, ok
@@ -126,6 +126,7 @@ app.include_router(health.router, prefix=API_PREFIX)
 app.include_router(documents.router, prefix=API_PREFIX)
 app.include_router(reviews.router, prefix=API_PREFIX)
 app.include_router(knowledge.router, prefix=API_PREFIX)
+app.include_router(assistant.router, prefix=API_PREFIX)
 
 
 if (FRONTEND_DIST / "index.html").is_file():

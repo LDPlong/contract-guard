@@ -7,6 +7,9 @@
 面向个人（租房青年、实习生、应届生）的合同风险提示工具，只覆盖三类合同：  
 房屋租赁、实习/劳动合同、培训贷/预付卡。
 
+页面右下角还有一个答疑助手：解释法条与名词、说明某类条款为什么有风险，每条回答附法条依据；
+预测输赢、代写条款、代理案件的提问一律拒答。
+
 > 参赛作品：2026 第九届传智杯全国大学生数智创新与 AI 应用大赛 · AI WEB 网页开发挑战赛 · 本科 B 组
 
 ---
@@ -135,7 +138,7 @@ contract-guard/
 │   │   ├── data/             # 审查清单（3 类 24 项）+ 法规语料（5 部 1825 条）
 │   │   ├── models/           # SQLAlchemy ORM
 │   │   ├── schemas/          # Pydantic（与 ORM 严格分离）
-│   │   └── services/         # 业务逻辑：parsing / rag / agent / llm
+│   │   └── services/         # 业务逻辑：parsing / rag / agent / llm / assistant
 │   ├── scripts/              # 建索引、抓语料、冒烟、评测集跑分
 │   └── tests/                # 88 项（含 9 份评测样本）
 └── frontend/

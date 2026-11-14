@@ -121,3 +121,29 @@ export interface StreamEvent {
   event: 'step' | 'finding' | 'progress' | 'done' | 'error'
   data: Record<string, unknown>
 }
+
+/** 答疑助手返回的法条（字段来自检索层，与 LegalBasis 不同：有 chunk_id 与原文） */
+export interface LawRef {
+  chunk_id: string
+  content: string
+  score: number
+  article_no: string
+  source: string
+  effective_date: string | null
+}
+
+/** 答疑流事件：refs 先到，answer 后到 */
+export type AssistantEvent =
+  | { event: 'refs'; data: { refs: LawRef[] } }
+  | {
+      event: 'answer'
+      data: {
+        answer: string
+        scope_ok: boolean
+        refs: LawRef[]
+        reason?: string
+        needs_review?: boolean
+        prompt_version?: string
+        model?: string
+      }
+    }
