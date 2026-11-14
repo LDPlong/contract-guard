@@ -151,7 +151,7 @@ class Retriever:
         self._load()
         assert self._data is not None
         by_article = self._article_index()
-        contents = dict(zip(self._data["ids"], self._data["contents"]))
+        contents = dict(zip(self._data["ids"], self._data["contents"], strict=False))
         picked: list[RetrievedChunk] = []
         seen: set[str] = set()
         for ref in refs:

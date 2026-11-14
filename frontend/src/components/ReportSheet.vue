@@ -14,6 +14,9 @@ const props = defineProps<{
   findings: Finding[]
   score: number | null
   summary: string
+  /** 立场声明与"清单之外的一个问题"（SSE done 事件，v1.2） */
+  stance?: string
+  openQuestion?: string
 }>()
 
 const TYPE_LABEL: Record<string, string> = {
@@ -48,11 +51,67 @@ const counts = computed(() => {
   return c
 })
 
+/** 速览页：只挑最要紧的三条，以及"必守 / 可谈"两组 */
+const actionable = computed(() =>
+  ordered.value.filter((f) => f.risk_level !== 'none'),
+)
+const topThree = computed(() => actionable.value.slice(0, 3))
+const mustList = computed(() => actionable.value.filter((f) => f.priority === 'must'))
+const negotiableList = computed(() =>
+  actionable.value.filter((f) => f.priority === 'negotiable'),
+)
+
 const today = new Date().toLocaleString('zh-CN', { hour12: false })
 </script>
 
 <template>
   <div class="report">
+    <!-- 第一页给不看全文的人：结论、最要紧的三处、谈的先后、清单之外的盲区 -->
+    <section class="quicklook">
+      <p class="ql-eyebrow">先看这一页</p>
+      <h2 class="ql-title">一页速览</h2>
+      <p v-if="summary" class="ql-verdict">{{ summary }}</p>
+      <p v-if="stance" class="ql-stance">审阅立场：{{ stance }}</p>
+
+      <div v-if="topThree.length" class="ql-block">
+        <p class="ql-label">最需要留意的三处</p>
+        <ol class="ql-top">
+          <li v-for="(f, i) in topThree" :key="f.id || i">
+            <span class="ql-num">{{ i + 1 }}</span>
+            <span class="ql-top-title">{{ f.title }}</span>
+            <span class="ql-top-impact">{{ f.impact || f.reason }}</span>
+          </li>
+        </ol>
+      </div>
+      <p v-else class="ql-empty">本次未发现需要优先处理的风险条款。</p>
+
+      <div class="ql-groups">
+        <div>
+          <p class="ql-label">先谈这些（必守）</p>
+          <ul v-if="mustList.length" class="ql-list">
+            <li v-for="(f, i) in mustList" :key="f.id || i">{{ f.title }}</li>
+          </ul>
+          <p v-else class="ql-empty">暂无</p>
+        </div>
+        <div>
+          <p class="ql-label">可以商量（可谈）</p>
+          <ul v-if="negotiableList.length" class="ql-list">
+            <li v-for="(f, i) in negotiableList" :key="f.id || i">{{ f.title }}</li>
+          </ul>
+          <p v-else class="ql-empty">暂无</p>
+        </div>
+      </div>
+
+      <p v-if="openQuestion" class="ql-open">
+        <span class="ql-label">清单之外的一个问题</span>{{ openQuestion }}
+      </p>
+
+      <p class="ql-disclaimer">
+        本页仅为风险提示与沟通次序建议，<strong>不构成法律意见</strong>，
+        不替代执业律师审查；排序由固定规则给出，不代表胜诉可能。
+      </p>
+    </section>
+
     <header class="report-head">
       <h1>合同风险审查报告</h1>
       <p class="meta">
@@ -265,6 +324,126 @@ const today = new Date().toLocaleString('zh-CN', { hour12: false })
 
 .report-foot {
   margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 0.5pt solid #ccc;
+  font-size: 8.5pt;
+  color: #555;
+}
+
+/* 速览页：单独占一页，沿用正文的宋体朴素版式 */
+.quicklook {
+  break-after: page;
+  page-break-after: always;
+  margin-bottom: 8mm;
+}
+
+.ql-eyebrow {
+  margin: 0;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 9pt;
+  letter-spacing: 0.08em;
+  color: #666;
+}
+
+.ql-title {
+  margin: 1mm 0 4mm;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 17pt;
+  font-weight: 600;
+}
+
+.ql-verdict {
+  margin: 0 0 3mm;
+  padding: 3mm 3.5mm;
+  background: #f6f5f1;
+  font-size: 10.5pt;
+}
+
+.ql-stance {
+  margin: 0 0 4mm;
+  font-size: 9.5pt;
+  color: #555;
+}
+
+.ql-block {
+  margin-bottom: 5mm;
+}
+
+.ql-label {
+  margin: 0 0 2mm;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 9.5pt;
+  color: #444;
+}
+
+.ql-top {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ql-top li {
+  margin-bottom: 2.5mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.ql-num {
+  margin-right: 2mm;
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-size: 10pt;
+  color: #666;
+}
+
+.ql-top-title {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 10.5pt;
+  font-weight: 600;
+}
+
+.ql-top-impact {
+  display: block;
+  margin-left: 7mm;
+  font-size: 9.5pt;
+  color: #555;
+}
+
+.ql-groups {
+  display: flex;
+  gap: 8mm;
+  margin-bottom: 5mm;
+}
+
+.ql-groups > div {
+  flex: 1;
+}
+
+.ql-list {
+  margin: 0;
+  padding-left: 5mm;
+  font-size: 9.5pt;
+}
+
+.ql-empty {
+  margin: 0;
+  font-size: 9.5pt;
+  color: #777;
+}
+
+.ql-open {
+  margin: 0 0 5mm;
+  padding: 3mm 3.5mm;
+  border-left: 1pt solid #999;
+  font-size: 10pt;
+}
+
+.ql-open .ql-label {
+  display: block;
+  margin-bottom: 1mm;
+}
+
+.ql-disclaimer {
+  margin: 0;
   padding-top: 3mm;
   border-top: 0.5pt solid #ccc;
   font-size: 8.5pt;

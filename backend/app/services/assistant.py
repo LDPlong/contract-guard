@@ -166,7 +166,10 @@ async def stream_answer(
     """产出一轮答疑的 SSE 事件：refs → answer → done。"""
     question = question.strip()[:MAX_QUESTION_CHARS]
     if not question:
-        yield {"event": "answer", "data": {"answer": "请先输入问题。", "refs": [], "scope_ok": True}}
+        yield {
+            "event": "answer",
+            "data": {"answer": "请先输入问题。", "refs": [], "scope_ok": True},
+        }
         return
 
     if looks_out_of_scope(question):
@@ -193,7 +196,9 @@ async def stream_answer(
         return
 
     try:
-        result = await client.chat_json(SYSTEM, build_user(question, context, chunks), max_tokens=800)
+        result = await client.chat_json(
+            SYSTEM, build_user(question, context, chunks), max_tokens=800
+        )
     except Exception:
         log.exception("assistant llm failed")
         yield {

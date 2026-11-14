@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ChevronDown, MessageCircle } from 'lucide-vue-next'
-import type { Finding, RiskLevel } from '@/types'
+import type { Finding, Priority, RiskLevel } from '@/types'
 
 const props = defineProps<{
   findings: Finding[]
@@ -29,6 +29,13 @@ const LEVEL: Record<RiskLevel, { text: string; edge: string; dot: string; label:
   medium: { text: 'text-risk-medium', edge: 'border-l-risk-medium', dot: 'bg-risk-medium', label: '中' },
   low: { text: 'text-risk-low', edge: 'border-l-risk-low', dot: 'bg-risk-low', label: '低' },
   none: { text: 'text-ink-faint', edge: 'border-l-line-strong', dot: 'bg-line-strong', label: '待核' },
+}
+
+// 谈判优先级：只告诉用户谈的先后，不产出可签署的条文（文档 1.2）
+const PRIORITY: Record<Priority, { label: string; cls: string }> = {
+  must: { label: '必守', cls: 'text-risk-high border-risk-high/40' },
+  negotiable: { label: '可谈', cls: 'text-accent border-accent/40' },
+  yieldable: { label: '可让步', cls: 'text-ink-faint border-line' },
 }
 
 function toggle(id: string) {
@@ -76,6 +83,15 @@ function ordinal(index: number) {
               {{ f.risk_level === 'none' ? '待复核' : `${LEVEL[f.risk_level].label}风险` }}
             </span>
             <span class="text-[10px] text-ink-faint">{{ f.category }}</span>
+            <span
+              v-if="f.needs_review"
+              class="border border-line px-1 py-0.5 text-[10px] text-ink-faint"
+            >待复核</span>
+            <span
+              v-else-if="f.priority"
+              class="border px-1 py-0.5 text-[10px]"
+              :class="PRIORITY[f.priority ?? 'yieldable'].cls"
+            >{{ PRIORITY[f.priority ?? 'yieldable'].label }}</span>
             <span v-if="f.clause_no" class="text-[10px] text-ink-faint">· {{ f.clause_no }}</span>
           </div>
           <div class="flex shrink-0 items-center gap-1.5">
@@ -119,6 +135,11 @@ function ordinal(index: number) {
             <p v-else class="mt-1 text-[11px] leading-relaxed text-ink-faint">
               未检索到直接对应的法条，结论仅供参考。
             </p>
+          </div>
+
+          <div v-if="f.impact">
+            <p class="label">可能影响</p>
+            <p class="mt-1 text-[11.5px] leading-[1.75] text-ink-soft">{{ f.impact }}</p>
           </div>
 
           <div>

@@ -40,7 +40,7 @@
 | M7  | 脱敏 / 限流 / 兜底            | ✅ 完成  |
 | M8  | 交付材料                    | 🟡 技术文档、评测集完成，演示视频待录 |
 
-规格文档：[`docs/项目开发文档.md`](docs/项目开发文档.md)（v1.1，实现以此为准）
+规格文档：仓库上一级目录的 `项目开发文档.md`（v1.2，实现以此为准；该文件未纳入本仓库，提交材料时随附）
 
 ---
 
@@ -140,7 +140,7 @@ contract-guard/
 │   │   ├── schemas/          # Pydantic（与 ORM 严格分离）
 │   │   └── services/         # 业务逻辑：parsing / rag / agent / llm / assistant
 │   ├── scripts/              # 建索引、抓语料、冒烟、评测集跑分
-│   └── tests/                # 88 项（含 9 份评测样本）
+│   └── tests/                # 106 项（含 9 份评测样本）
 └── frontend/
     └── src/
         ├── api/              # http.ts（普通接口）+ review.ts（SSE）

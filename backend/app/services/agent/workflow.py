@@ -9,9 +9,15 @@ import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-from app.core.constants import JUDGE_TIMEOUT_SEC, RiskLevel
+from app.core.constants import (
+    JUDGE_TIMEOUT_SEC,
+    MIN_LEGAL_BASIS_CHUNKS,
+    Priority,
+    RiskLevel,
+)
 from app.core.logging import get_logger
 from app.services.agent.checklist import Checklist, ChecklistItem, load_checklist
+from app.services.agent.framework import open_question_of, review_framework, stance_of
 from app.services.agent.gating import Candidate, Gate
 from app.services.agent.prompts import PROMPT_VERSION, SYSTEM, build_user
 from app.services.agent.tools import (
@@ -36,6 +42,46 @@ LEGAL_QUOTE_CHARS = 80
 PROMPT_LAW_TOP = 5  # 塞进提示词的法条条数上限（参考法条优先占位）
 VALID_LEVELS = {RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.LOW, RiskLevel.NONE}
 
+# 涉及法定权利、已付款项或退出权的，即使只是中风险也列入"必守"。
+MUST_KEYWORDS = (
+    "押金", "保证金", "社保", "工资", "违约金", "解除", "终止", "退款", "退费",
+    "放弃", "无效", "试用期", "竞业", "必备条款", "退出权不对等", "虚假前提",
+)
+IMPACT_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("押金", "保证金", "预付款"), "可能损失已支付的押金 / 预付款"),
+    (("违约金", "赔偿", "扣款"), "可能被要求支付额外费用或承担赔偿"),
+    (("解除", "终止", "退租", "退款", "退费"), "可能难以中途退出，或已付费用拿不回来"),
+    (("社保", "保险"), "可能影响社保待遇与后续维权"),
+    (("工资", "薪酬", "试用期", "加班"), "可能直接影响实际到手收入"),
+    (("竞业", "保密"), "可能影响离职后的就业范围"),
+    (("必备条款", "主体", "期限"), "关键要素不清，发生争议时难以举证"),
+    (("义务单向性", "违约对称性"), "出问题时可能缺少可主张的依据"),
+    (("虚假前提", "格式条款"), "可能预先放弃了本可以主张的权利"),
+)
+
+
+def _priority_of(level: str, text: str) -> str:
+    """谈判优先级由代码定，不交给模型——只给沟通次序，不产出条文。"""
+    if level == RiskLevel.HIGH:
+        return Priority.MUST
+    if level == RiskLevel.MEDIUM:
+        return Priority.MUST if any(k in text for k in MUST_KEYWORDS) else Priority.NEGOTIABLE
+    return Priority.YIELDABLE
+
+
+def _impact_of(level: str, text: str) -> str:
+    if level == RiskLevel.NONE:
+        return "该项未完成自动判定，影响暂无法评估"
+    for keywords, sentence in IMPACT_RULES:
+        if any(k in text for k in keywords):
+            return sentence
+    return "可能增加履约成本，或让后续维权更被动"
+
+
+def _presentation(level: str, category: str, title: str, reason: str = "") -> tuple[str, str]:
+    text = f"{category}{title}{reason}"
+    return _priority_of(level, text), _impact_of(level, text)
+
 
 @dataclass
 class FindingDraft:
@@ -53,6 +99,8 @@ class FindingDraft:
     clause_no: str | None = None
     page_no: int | None = None
     needs_review: bool = False
+    priority: str = Priority.YIELDABLE
+    impact: str = ""
 
     def as_dict(self) -> dict:
         return {
@@ -70,6 +118,8 @@ class FindingDraft:
             "clause_no": self.clause_no,
             "page_no": self.page_no,
             "needs_review": self.needs_review,
+            "priority": self.priority,
+            "impact": self.impact,
         }
 
 
@@ -80,6 +130,7 @@ def _clause_key(clause: Clause) -> str:
 
 def _fallback_finding(item: ChecklistItem, reason: str) -> FindingDraft:
     """模型失败或输出不可用时的兜底：不编结论，标记需人工复核。"""
+    priority, impact = _presentation(RiskLevel.NONE, item.category, item.name)
     return FindingDraft(
         item_id=item.id,
         category=item.category,
@@ -89,6 +140,29 @@ def _fallback_finding(item: ChecklistItem, reason: str) -> FindingDraft:
         suggestion="该项需人工复核。",
         confidence=0.0,
         needs_review=True,
+        priority=priority,
+        impact=impact,
+    )
+
+
+def _uncovered_finding(item: ChecklistItem) -> FindingDraft:
+    """依据充分性闸门：零法条命中时不让模型下结论（文档硬约束 5）。
+
+    与"模型调用失败"分开，是为了让复核的人一眼看出该补的是法条还是重试。
+    """
+    priority, impact = _presentation(RiskLevel.NONE, item.category, item.name)
+    return FindingDraft(
+        item_id=item.id,
+        category=item.category,
+        risk_level=RiskLevel.NONE,
+        title=f"{item.name}：依据不足，未下结论",
+        reason="该审查项没有检索到可直接引用的法条，也没有命中清单里人工校过的参考法条；"
+        "为避免凭空判断，本项不做自动判定。",
+        suggestion="请人工核对该条款，或补充对应的法规语料后重新审查。",
+        confidence=0.0,
+        needs_review=True,
+        priority=priority,
+        impact=impact,
     )
 
 
@@ -156,12 +230,17 @@ def _to_finding(
     if not basis:
         confidence = min(confidence, 0.5)  # 无依据的结论不给高置信度
 
+    category = str(payload.get("category") or item.category)[:16]
+    title = str(payload.get("title") or item.name)[:30]
+    reason = str(payload.get("reason") or "")[:200]
+    priority, impact = _presentation(level, category, title, reason)
+
     return FindingDraft(
         item_id=item.id,
-        category=str(payload.get("category") or item.category)[:16],
+        category=category,
         risk_level=level,
-        title=str(payload.get("title") or item.name)[:30],
-        reason=str(payload.get("reason") or "")[:200],
+        title=title,
+        reason=reason,
         suggestion=str(payload.get("suggestion") or "")[:300],
         legal_basis=basis,
         negotiation_tip=(
@@ -174,6 +253,8 @@ def _to_finding(
         clause_seq=primary.clause.seq if primary else None,
         clause_no=primary.clause.clause_no if primary else None,
         page_no=primary.clause.page_no if primary else None,
+        priority=priority,
+        impact=impact,
     )
 
 
@@ -200,17 +281,24 @@ async def _judge_item(
             }
             for c in chunks
         ]
+        # missing_check 的结论来自"合同里缺哪个词"的文本规则，不依赖法条推理，
+        # 因此即使法条通道为空也照常提示，但只作缺项提示、不附法条结论。
+        title = f"合同缺少{('、'.join(missing))[:20]}"[:30]
+        reason = f"未在合同中找到以下必备要素：{'、'.join(missing)}。"
+        priority, impact = _presentation(item.weight, item.category, title, reason)
         return FindingDraft(
             item_id=item.id,
             category=item.category,
             risk_level=item.weight,
-            title=f"合同缺少{('、'.join(missing))[:20]}"[:30],
-            reason=f"未在合同中找到以下必备要素：{'、'.join(missing)}。",
+            title=title,
+            reason=reason,
             suggestion="建议补充上述必备要素，明确金额、期限与履行方式后再签署。",
             legal_basis=basis,
             negotiation_tip="这几项是合同的基本内容，补上对双方都清楚。",
             confidence=0.8,
             page_no=None,
+            priority=priority,
+            impact=impact,
         )
 
     if not candidates:
@@ -219,11 +307,18 @@ async def _judge_item(
     # 参考法条优先：清单里点名的那几条按条精确取，检索只做补充
     pinned = retriever.resolve_refs(item.legal_refs)
     try:
-        retrieved = await retriever.search(item.query, top_k=5)
+        retrieved = await retriever.search(item.query, top_k=PROMPT_LAW_TOP)
     except Exception:  # noqa: BLE001
         retrieved = []
     pinned_ids = {c.chunk_id for c in pinned}
     chunks = (pinned + [c for c in retrieved if c.chunk_id not in pinned_ids])[:PROMPT_LAW_TOP]
+
+    # 依据充分性闸门：零条直接相关法条时不下结论。
+    # 清单里的 legal_refs 是人工校过的精确通道，一条即可；语义检索只是补充。
+    # 之前这里无论命中几条都照样调模型，只靠压低 confidence 兜底，仍会产出"没依据的结论"。
+    if len(chunks) < MIN_LEGAL_BASIS_CHUNKS:
+        log.info("legal basis insufficient item=%s hits=%d", item.id, len(chunks))
+        return _uncovered_finding(item)
 
     clause_list = [c.clause for c in candidates]
     user_prompt = build_user(item, clause_list, chunks)
@@ -246,14 +341,18 @@ async def _judge_item(
 
 
 def _fallback_hit_none(item: ChecklistItem) -> FindingDraft:
+    title = f"未发现{item.name}相关风险"
+    priority, impact = _presentation(RiskLevel.NONE, item.category, title)
     return FindingDraft(
         item_id=item.id,
         category=item.category,
         risk_level=RiskLevel.NONE,
-        title=f"未发现{item.name}相关风险",
+        title=title,
         reason="合同中未匹配到与该审查项相关的条款，或条款表述符合常规。",
         suggestion="无需修改。",
         confidence=0.7,
+        priority=priority,
+        impact=impact,
     )
 
 
@@ -371,6 +470,31 @@ async def run_review(
             yield {"event": "finding", "data": finding.as_dict()}
         yield {"event": "progress", "data": {"done": done, "total": total}}
 
+    # 框架审阅：清单逐条判定看不到的"整份合同一边倒"，纯规则、零模型调用。
+    # 放在聚合阶段产出，命中一律提示级（low），不当成确证风险。
+    framework_observations = review_framework(clauses)
+    for obs in framework_observations:
+        evidence = next((c for c in clauses if c.seq == obs["clause_seq"]), None)
+        impact = _impact_of(RiskLevel.LOW, f"{obs['category']}{obs['title']}{obs['reason']}")
+        results.append(
+            FindingDraft(
+                item_id=obs["item_id"],
+                category=obs["category"],
+                risk_level=RiskLevel.LOW,
+                title=obs["title"],
+                reason=obs["reason"],
+                suggestion=obs["suggestion"],
+                negotiation_tip=obs["negotiation_tip"],
+                confidence=0.6,
+                clause_id=_clause_key(evidence) if evidence else None,
+                clause_seq=evidence.seq if evidence else None,
+                clause_no=evidence.clause_no if evidence else None,
+                page_no=evidence.page_no if evidence else None,
+                priority=obs["priority"],
+                impact=impact,
+            )
+        )
+
     blank_template = is_blank_template(clauses)
     if blank_template:
         results = _soften_blank_template(results)
@@ -396,5 +520,13 @@ async def run_review(
             "prompt_version": PROMPT_VERSION,
             "checklist_version": board.version,
             "blank_template": blank_template,
+            # 立场声明与"清单之外的一个问题"：让用户知道结论站在哪一侧、
+            # 以及 checklist 没有覆盖但会影响签字决策的盲区。
+            "stance": stance_of(board.contract_type),
+            "open_question": open_question_of(board.contract_type),
+            "framework_flags": [
+                {"key": obs["item_id"], "category": obs["category"], "title": obs["title"]}
+                for obs in framework_observations
+            ],
         },
     }

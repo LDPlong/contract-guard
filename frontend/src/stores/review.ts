@@ -34,6 +34,8 @@ export const useReviewStore = defineStore('review', {
     findings: [] as Finding[],
     score: null as number | null,
     summary: '',
+    stance: '',
+    openQuestion: '',
     reviewId: null as string | null,
     error: '',
     progress: { done: 0, total: 0 },
@@ -98,6 +100,8 @@ export const useReviewStore = defineStore('review', {
       this.findings = []
       this.score = null
       this.summary = ''
+      this.stance = ''
+      this.openQuestion = ''
       this.error = ''
       this.progress = { done: 0, total: 0 }
 
@@ -140,6 +144,8 @@ export const useReviewStore = defineStore('review', {
             case 'done': {
               this.score = (data.safety_score as number) ?? null
               this.summary = String(data.summary ?? '')
+              this.stance = String(data.stance ?? '')
+              this.openQuestion = String(data.open_question ?? '')
               this.reviewId = (data.review_id as string) ?? this.reviewId
               const finalFindings = data.findings as Finding[] | undefined
               if (Array.isArray(finalFindings)) this.findings = finalFindings

@@ -228,5 +228,7 @@ function exportReport() {
     :findings="store.findings"
     :score="store.score"
     :summary="store.summary"
+    :stance="store.stance"
+    :open-question="store.openQuestion"
   />
 </template>

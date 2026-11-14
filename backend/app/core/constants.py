@@ -91,6 +91,28 @@ LLM_MAX_CONCURRENCY = 3
 RRF_K = 60
 RETRIEVE_TIMEOUT_MS = 800
 
+# ---- 依据充分性闸门（强化文档硬约束 5：无检索结果不得编造法条）----
+# 清单项是细粒度的单条规定，且 legal_refs 是人工校过的精确法条，
+# 因此门槛取"至少 1 条直接相关命中"；律师级法律研究要求的 ≥5 条不适用于本产品。
+# 零命中时不下结论，直接标需人工复核。
+MIN_LEGAL_BASIS_CHUNKS = 1
+
+# ---- 框架审阅（整份合同的结构性失衡，纯规则，不调模型）----
+# 阈值在 9 份评测样本上调过：6 份问题样本命中 4 份，3 份官方示范文本零误报。
+# 只统计"单主体句"（甲乙双方不同句出现），双方共现句不判，否则归属无法判定。
+FRAMEWORK_MIN_OBLIGATIONS = 4
+FRAMEWORK_IMBALANCE_RATIO = 2.0
+FRAMEWORK_MIN_WEAK_BREACH = 2
+FRAMEWORK_MIN_FALSE_PREMISE = 1
+
+
+class Priority(str):
+    """谈判优先级：必守 / 可谈 / 可让步。只给沟通次序，不产出可签署条文。"""
+
+    MUST = "must"
+    NEGOTIABLE = "negotiable"
+    YIELDABLE = "yieldable"
+
 # ---- 解析（文档 3.4 / 8.1）----
 PARSE_TIMEOUT_SEC = 10
 STALE_PARSING_MINUTES = 5

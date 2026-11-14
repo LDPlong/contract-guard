@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -78,12 +78,32 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
+def _ensure_finding_columns(connection) -> None:  # noqa: ANN001
+    """给已存在的 SQLite 库补列：create_all 不会改动旧表。
+
+    只新增带默认值的列，不动任何存量数据；按列名判断，重复执行安全。
+    """
+    existing = {
+        row[1] for row in connection.execute(text("PRAGMA table_info(findings)"))
+    }
+    additions = (
+        ("priority", "TEXT NOT NULL DEFAULT 'yieldable'"),
+        ("impact", "TEXT NOT NULL DEFAULT ''"),
+        ("needs_review", "INTEGER NOT NULL DEFAULT 0"),
+    )
+    for name, ddl in additions:
+        if name not in existing:
+            connection.execute(text(f"ALTER TABLE findings ADD COLUMN {name} {ddl}"))
+
+
 async def init_models() -> None:
-    """开发/演示环境建表。生产应走迁移脚本。"""
+    """开发/演示环境建表 + 幂等补列。生产应走迁移脚本。"""
     import app.models  # noqa: F401  确保所有模型已注册
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if _is_sqlite:
+            await conn.run_sync(_ensure_finding_columns)
 
 
 def sqlite_file_path() -> Path | None:

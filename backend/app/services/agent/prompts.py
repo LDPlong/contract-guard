@@ -1,7 +1,7 @@
 """提示词模板（版本化）。
 
 修改任何提示词都必须同步提升 PROMPT_VERSION，并写入 reviews.prompt_version，
-否则历史结论无法复现。
+否则历史结论无法复现。影响结论生成条件的工作流改动（如依据充分性闸门）同样要升版本。
 """
 
 from __future__ import annotations
@@ -10,7 +10,8 @@ from app.services.agent.checklist import ChecklistItem
 from app.services.parsing.models import Clause
 from app.services.rag.types import RetrievedChunk
 
-PROMPT_VERSION = "judge-1.1"
+# 1.2：新增依据充分性闸门（零法条命中不下结论）与谈判优先级 / 可能影响派生字段。
+PROMPT_VERSION = "judge-1.2"
 
 MAX_CLAUSE_CHARS = 400
 MAX_LAW_CHARS = 300

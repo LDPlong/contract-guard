@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.constants import ContractType, ErrorCode, RiskLevel
+from app.core.constants import ContractType, ErrorCode, Priority, RiskLevel
 from app.core.errors import BizError
 from app.core.logging import get_logger
 from app.core.sse import sse_frame
@@ -113,6 +113,9 @@ async def _persist_result(
                 suggestion=item.get("suggestion", ""),
                 negotiation_tip=item.get("negotiation_tip"),
                 confidence=float(item.get("confidence") or 0.0),
+                priority=str(item.get("priority") or Priority.YIELDABLE)[:16],
+                impact=str(item.get("impact") or "")[:80],
+                needs_review=1 if item.get("needs_review") else 0,
             )
         )
     await session.commit()

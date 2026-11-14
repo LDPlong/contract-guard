@@ -11,6 +11,8 @@ export interface Envelope<T> {
 
 export type ContractType = 'lease' | 'labor' | 'prepaid' | 'unknown'
 export type RiskLevel = 'high' | 'medium' | 'low' | 'none'
+/** 谈判优先级：只给沟通次序，不代表可直接修改条文（文档 1.2） */
+export type Priority = 'must' | 'negotiable' | 'yieldable'
 export type DocumentStatus = 'uploaded' | 'parsing' | 'parsed' | 'failed'
 export type ReviewStatus = 'pending' | 'running' | 'done' | 'partial' | 'failed'
 
@@ -90,6 +92,10 @@ export interface Finding {
   suggestion: string
   negotiation_tip: string | null
   confidence: number
+  /** v1.2：谈判优先级 / 白话影响 / 是否需人工复核，SSE 与回查接口都会带 */
+  priority?: Priority
+  impact?: string
+  needs_review?: boolean
 }
 
 /** 8.5 审查结果 */

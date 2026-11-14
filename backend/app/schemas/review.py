@@ -6,6 +6,7 @@ import json
 
 from pydantic import BaseModel
 
+from app.core.constants import Priority
 from app.models.review import Finding, Review
 
 
@@ -29,6 +30,10 @@ class FindingOut(BaseModel):
     suggestion: str
     negotiation_tip: str | None = None
     confidence: float
+    # v1.2：谈判优先级 / 白话影响 / 是否需人工复核
+    priority: str = Priority.YIELDABLE
+    impact: str = ""
+    needs_review: bool = False
 
 
 class ReviewOut(BaseModel):
@@ -66,6 +71,9 @@ def to_finding_out(row: Finding) -> FindingOut:
         suggestion=row.suggestion,
         negotiation_tip=row.negotiation_tip,
         confidence=round(row.confidence, 3),
+        priority=row.priority or Priority.YIELDABLE,
+        impact=row.impact or "",
+        needs_review=bool(row.needs_review),
     )
 
 
