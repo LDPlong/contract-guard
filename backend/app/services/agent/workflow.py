@@ -14,7 +14,12 @@ from app.core.logging import get_logger
 from app.services.agent.checklist import Checklist, ChecklistItem, load_checklist
 from app.services.agent.gating import Candidate, Gate
 from app.services.agent.prompts import PROMPT_VERSION, SYSTEM, build_user
-from app.services.agent.tools import calc_safety_score, check_missing, risk_levels_of
+from app.services.agent.tools import (
+    calc_safety_score,
+    check_missing,
+    is_blank_template,
+    risk_levels_of,
+)
 from app.services.llm.client import LLMClient
 from app.services.parsing.models import Clause
 from app.services.rag.retriever import Retriever
@@ -252,6 +257,20 @@ def _fallback_hit_none(item: ChecklistItem) -> FindingDraft:
     )
 
 
+def _soften_blank_template(findings: list[FindingDraft]) -> list[FindingDraft]:
+    """空白模板里的"未约定"类结论不成立——那只是还没填。
+
+    只降中风险，高风险不动：绝对化表述（概不退款、放弃社保）即使是模板也仍然是风险。
+    """
+    for finding in findings:
+        if finding.risk_level != RiskLevel.MEDIUM:
+            continue
+        finding.risk_level = RiskLevel.LOW
+        finding.needs_review = True
+        finding.reason += "（该条款为空白待填项，最终风险取决于实际填写内容）"
+    return findings
+
+
 def _dedupe(findings: list[FindingDraft]) -> list[FindingDraft]:
     """同一份合同的同一处条款，同一类别只保留最严重的一条。"""
     order = {RiskLevel.HIGH: 3, RiskLevel.MEDIUM: 2, RiskLevel.LOW: 1, RiskLevel.NONE: 0}
@@ -266,13 +285,18 @@ def _dedupe(findings: list[FindingDraft]) -> list[FindingDraft]:
     return sorted(best.values(), key=lambda f: order[f.risk_level], reverse=True)
 
 
-def _build_summary(findings: list[FindingDraft], score: int, needs_review: int) -> str:
+def _build_summary(
+    findings: list[FindingDraft], score: int, needs_review: int, blank_template: bool = False
+) -> str:
     high = sum(1 for f in findings if f.risk_level == RiskLevel.HIGH)
     medium = sum(1 for f in findings if f.risk_level == RiskLevel.MEDIUM)
     low = sum(1 for f in findings if f.risk_level == RiskLevel.LOW)
     parts = [f"安全分 {score}/100"]
     parts.append(f"高风险 {high} 处、中风险 {medium} 处、低风险 {low} 处")
-    if needs_review:
+    if blank_template and needs_review:
+        parts.insert(1, "本文件是未填写的合同模板")
+        parts.append(f"另有 {needs_review} 项为空白待填项，签署前建议核对实际填写内容")
+    elif needs_review:
         parts.append(f"另有 {needs_review} 项未能自动判定，建议人工复核")
     return "；".join(parts) + "。"
 
@@ -347,6 +371,9 @@ async def run_review(
             yield {"event": "finding", "data": finding.as_dict()}
         yield {"event": "progress", "data": {"done": done, "total": total}}
 
+    blank_template = is_blank_template(clauses)
+    if blank_template:
+        results = _soften_blank_template(results)
     findings = _dedupe(results)
     needs_review = sum(1 for f in results if f.needs_review)
     missing_count = sum(
@@ -362,11 +389,12 @@ async def run_review(
         "event": "done",
         "data": {
             "safety_score": score,
-            "summary": _build_summary(findings, score, needs_review),
+            "summary": _build_summary(findings, score, needs_review, blank_template),
             "findings": [f.as_dict() for f in findings],
             "skipped_items": skipped,
             "needs_review": needs_review,
             "prompt_version": PROMPT_VERSION,
             "checklist_version": board.version,
+            "blank_template": blank_template,
         },
     }

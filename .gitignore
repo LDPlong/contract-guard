@@ -26,3 +26,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 *.log
+
+# ---- 工作区临时文件 ----
+.scratch/

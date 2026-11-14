@@ -62,6 +62,15 @@ def test_check_missing():
     assert check_missing(text, ["租金", "租赁期限"]) == ["租赁期限"]
 
 
+def test_check_missing_accepts_synonym_alternatives():
+    # 房屋坐落于 XX 路 = 写清了地址；不能因为没出现"地址"两个字就判缺项
+    text = "第一条 房屋坐落于成都市武侯区科华北路 66 号。租赁期限 12 个月，月租金 3200 元。"
+    assert check_missing(text, ["租赁期限", "租金", "地址|坐落"]) == []
+    # 没写门牌就是没写，别被"位于"蒙过去
+    vague = "房屋位于某小区，具体门牌以带看为准。租金 2600 元。"
+    assert check_missing(vague, ["租金", "地址|坐落"]) == ["地址"]
+
+
 # ---------- 预筛 ----------
 
 

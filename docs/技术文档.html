@@ -16,6 +16,8 @@
   h2 { font-size: 13.5pt; margin: 8mm 0 3mm; padding-bottom: 2mm; border-bottom: 1px solid #d8d5cc; }
   h3 { font-size: 11.5pt; margin: 6mm 0 2mm; }
   h4 { font-size: 10.5pt; margin: 4mm 0 1.5mm; color: #333; }
+  /* 标题不留空页：标题与后文不拆开 */
+  h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
   p { margin: 0 0 3mm; text-align: justify; }
   ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
   li { margin-bottom: 1.2mm; }
@@ -73,9 +75,9 @@
     <div><span>四、AI 技术方案</span><span>7</span></div>
     <div><span>五、核心功能实现</span><span>11</span></div>
     <div><span>六、测试与部署</span><span>13</span></div>
-    <div><span>七、总结与展望</span><span>15</span></div>
-    <div><span>附录 A：AI 技术选型说明</span><span>16</span></div>
-    <div><span>附录 B：创新点说明</span><span>17</span></div>
+    <div><span>七、总结与展望</span><span>16</span></div>
+    <div><span>附录 A：AI 技术选型说明</span><span>17</span></div>
+    <div><span>附录 B：创新点说明</span><span>18</span></div>
   </div>
   <p class="small" style="margin-top:8mm">
     说明：本文档中的性能数据、命中率均为本机实测（Windows 11 / Python 3.13 / Node 22），
@@ -450,7 +452,7 @@ save   写 reviews / findings，clause_seq 映射为数据库 id</pre>
   <p>
     解析在请求内同步执行，硬超时 10 秒；超时返回 <code>2003</code> 与 <code>status=parsing</code>，
     任务通过 <code>asyncio.shield</code> 继续在后台跑，前端轮询即可拿到结果。
-    这里没有引入任务队列，代价是必须单进程部署（见 6.3）。
+    这里没有引入任务队列，代价是必须单进程部署（见 6.4）。
   </p>
 
   <h3>5.2 流式审查</h3>
@@ -534,7 +536,7 @@ data: {"done":4,"total":10}</pre>
   <h2>六、测试与部署</h2>
 
   <h3>6.1 自动化测试</h3>
-  <p>共 84 项测试，覆盖解析、检索、Agent、接口与部署形态、多模态五个层面：</p>
+  <p>共 88 项测试，覆盖解析、检索、Agent、接口与部署形态、多模态五个层面：</p>
   <table>
     <tr><th style="width:30%">测试文件</th><th style="width:12%">数量</th><th>覆盖点</th></tr>
     <tr><td>test_splitter.py</td><td>8</td><td>四类编号、无编号兜底、条内款不另起、bbox 并集、偏移单调</td></tr>
@@ -545,6 +547,7 @@ data: {"done":4,"total":10}</pre>
     <tr><td>test_agent.py</td><td>10</td><td>评分扣分与截断、预筛候选、防幻觉丢弃、兜底标记</td></tr>
     <tr><td>test_llm_client.py</td><td>11</td><td>JSON 清洗、重试、超时、并发闸门（全部注入假 transport，不联网）</td></tr>
     <tr><td>test_vision_parser.py</td><td>5</td><td>图片条款组装、偏移一致、非法输出报错</td></tr>
+    <tr><td>test_blank_template.py</td><td>4</td><td>空白模板识别、已填写合同不误判、降级只动中风险不动高风险</td></tr>
     <tr><td>接口测试</td><td>23</td><td>上传、详情、原文件、删除、SSE 事件序列、会话隔离、资料库分页与检索、
       单进程托管的 SPA 回退（接口 404 不被 HTML 吞掉）</td></tr>
   </table>
@@ -555,41 +558,89 @@ data: {"done":4,"total":10}</pre>
   <h3>6.2 端到端实测</h3>
   <table>
     <tr><th style="width:34%">场景</th><th style="width:20%">输入</th><th>结果</th></tr>
-    <tr><td>PDF 解析 + 切分</td><td>广东省住房租赁合同示范文本，15 页</td><td>514 个文本行 → 15 条条款，类型识别 lease（关键词打分 59 分）</td></tr>
-    <tr><td>完整审查</td><td>同上</td><td>10 项清单全部进入判定，6 条中风险，安全分 70，耗时 9.8 秒</td></tr>
+    <tr><td>PDF 解析 + 切分</td><td>广东省住房租赁合同示范文本，15 页</td><td>514 个文本行 → 16 条条款，类型识别 lease（关键词打分 59 分，次高 prepaid 6 分）</td></tr>
+    <tr><td>完整审查</td><td>同上</td><td>10 项清单全部进入判定，6 条结论按低风险输出（空白待填类提示），安全分 88，耗时约 9 秒</td></tr>
     <tr><td>图片合同</td><td>合同照片 834×542</td><td>3 条条款正确识别，审查 3.7 秒，输出 2 条高风险 + 1 条中风险</td></tr>
     <tr><td>坏文件</td><td>扩展名 .pdf、内容是文本</td><td>按文件头拒绝，返回 1002，提示"仅支持真实 PDF"</td></tr>
     <tr><td>会话隔离</td><td>换 session 查询他人的审查结果</td><td>404，不泄露存在性以外信息</td></tr>
   </table>
 
-  <h3>6.3 部署</h3>
+  <h3>6.3 评测集跑分</h3>
+  <p>
+    评测集分两组：6 份带问题的样本，条款原文取自中国消费者协会《这些不公平格式条款都需要整改》
+    （2025 年 3 月）、成都市住建局 2025 年 5 月公开的住房租赁案例、劳动合同法的禁止性规定；
+    另 3 份官方示范文本作对照组。每份逐条标注「必须命中的审查项 + 依据法条」，
+    <code>scripts/eval_set.py</code> 按审查项 ID 直接比对，命不命中可复现。
+  </p>
+  <table>
+    <tr><th style="width:36%">组别</th><th style="width:14%">条款数</th><th>结果</th></tr>
+    <tr><td>问题样本 6 份（租赁 2 / 劳动 2 / 预付卡 2）</td><td>56</td>
+      <td>35 项关注项全部命中：高风险 25/25、中风险 10/10；单份耗时 7~11 秒</td></tr>
+    <tr><td>对照组 3 份（省级以上示范文本）</td><td>83</td>
+      <td>判为高风险 0 条；中风险 3 条，均为「留空待填」类提示，按条款计误报率 3.6%</td></tr>
+  </table>
+  <p>
+    <strong>关于「空白模板」这一课。</strong>官方示范文本是没填过的模板，押金比例、违约金标准、
+    试用期长度全是空白。第一版跑分时模型把这些空白判成「未约定押金退还时限」，
+    对照组冒出 12 条中风险、广东省示范文本只拿 70 分——把「还没填」当成了「没约定」，结论不成立。
+  </p>
+  <p>
+    现在的做法是先判断整份文件是不是空白模板：统计每条条款的填空标记数（勾选框、方括号、
+    下划线、「第＿种」都算），示范文本约 4.8 处/条，已填写的合同 0.5 处/条以下，阈值取 2.0。
+    判为模板时把中风险结论降为低风险并标注「空白待填」，<strong>高风险一律不动</strong>——
+    「概不退款」即使写在模板里也仍然是风险。改完后 12 条降到 3 条，对照组 88 / 94 / 85。
+  </p>
+  <table>
+    <tr><th style="width:44%">样本</th><th style="width:12%">类型</th><th style="width:10%">条款</th>
+      <th style="width:10%">安全分</th><th>关注项命中</th></tr>
+    <tr><td>培训预付卡课程服务协议</td><td>预付卡</td><td>9</td><td>59</td><td>3/3</td></tr>
+    <tr><td>培训学费分期（培训贷）三方协议</td><td>预付卡</td><td>8</td><td>40</td><td>4/4</td></tr>
+    <tr><td>长租机构版房屋租赁合同</td><td>租赁</td><td>11</td><td>6</td><td>7/7</td></tr>
+    <tr><td>二房东房屋转租协议</td><td>租赁</td><td>9</td><td>0</td><td>7/7</td></tr>
+    <tr><td>制造业劳动合同</td><td>劳动</td><td>10</td><td>4</td><td>8/8</td></tr>
+    <tr><td>餐饮门店聘用合同</td><td>劳动</td><td>9</td><td>23</td><td>6/6</td></tr>
+    <tr><td>广东省住房租赁合同示范文本</td><td>租赁</td><td>16</td><td>88</td><td>对照组</td></tr>
+    <tr><td>中小学生校外培训服务合同示范文本</td><td>预付卡</td><td>11</td><td>94</td><td>对照组</td></tr>
+    <tr><td>江西省劳动合同示范文本</td><td>劳动</td><td>56</td><td>85</td><td>对照组</td></tr>
+  </table>
+  <p class="small">
+    问题样本安全分低是设计意图——这三类合同一旦出现绝对化条款，扣分本就应该到 0 附近。
+    剩下的 3 条中风险全部落在江西劳动合同示范文本上：它有 56 条条款、只有 8 处填空，
+    密度 0.14 处/条，够不到空白模板的判定阈值，降级规则没有触发——这正是把阈值写成
+    「密度」而不是「出现过就算」的代价：稀疏空白的模板会漏判，宁可惜判保守也不误伤已填写合同。
+  </p>
+
+  <h3>6.4 部署</h3>
   <pre>cd frontend && npm run build          # 产出 frontend/dist
 cd ../backend && python -m scripts.build_index   # 首次：法规索引
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1</pre>
   <p>
     前端构建产物由后端进程直接托管：<code>/api/v1/*</code> 走接口，其余路径回落到
-    <code>index.html</code>，写错的接口仍返回 JSON 404 而不是一页 HTML。
-    这样部署就是"一个进程、一个端口"，演示服务器不必再配 nginx 反代与跨域；
-    代价是改前端必须重新构建，开发时仍用 vite dev server 走代理。
+    <code>index.html</code>，写错的接口仍返回 JSON 404 而不是一页 HTML。部署因此是
+    "一个进程、一个端口"，不必再配 nginx 反代与跨域；代价是改前端必须重新构建。
   </p>
   <p>
-    单进程是硬约束：解析任务、SSE 连接状态、BM25 内存索引都驻留在进程内，
-    多 worker 会导致任务丢失与索引不一致。启动时会做一次状态修复：
-    把重启前残留的 <code>parsing</code> 记录标记为失败，避免前端无限轮询。
-  </p>
-  <p>
-    SQLite 在连接时强制执行 <code>journal_mode=WAL</code>、<code>synchronous=NORMAL</code>、
-    <code>foreign_keys=ON</code>。第三条容易被忽略——SQLite 默认关闭外键，
-    不显式打开的话 <code>ON DELETE CASCADE</code> 完全不生效。
+    单进程是硬约束：解析任务、SSE 连接状态、BM25 内存索引都在进程内，多 worker 会丢任务、
+    索引不一致。启动时做一次状态修复，把重启前残留的 <code>parsing</code> 记录标记为失败。
+    连接 SQLite 时强制打开 <code>foreign_keys=ON</code>——它默认是关的，不开则
+    <code>ON DELETE CASCADE</code> 完全不生效；同时设 <code>journal_mode=WAL</code> 与
+    <code>synchronous=NORMAL</code>。
   </p>
 
-  <h3>6.4 已知限制</h3>
+  <h3>6.5 已知限制</h3>
   <ul>
-    <li><strong>评测集尚未完成</strong>：现有样本为公开示范文本，条款公平，无法计算"高风险召回率"。真实评测需要带问题的合同并人工标注，计划在省赛前补齐 9 份。</li>
+    <li><strong>评测样本是汇编，不是原件</strong>：6 份问题样本的条款原文可以逐条追溯到公开材料，
+      但真实签署合同的复印件既拿不到也存着不合适——公共资源交易平台的合同附件多是 JS 接口或扫描件，
+      且含当事人姓名、身份证号。代价是版式噪声、错别字、勾选痕迹这几类真实问题没有覆盖，
+      版式验证只能靠那份真实的广东省示范文本。</li>
     <li><strong>法条覆盖仍可加深</strong>：已入库五部（民法典、劳动合同法、民事诉讼法、消费者权益保护法、社会保险法），
       但劳动法、个人信息保护法、各地租赁管理条例尚未入库，少数审查项只能引到上位法。</li>
     <li><strong>图片无坐标</strong>：只能做条款级定位。</li>
     <li><strong>向量通道默认关闭</strong>：未配置 embedding 时仅 BM25，同义词召回弱于混合检索。</li>
+    <li><strong>依赖外部模型服务</strong>：断网或额度耗尽时只能走兜底路径，逐项标记「需复核」而不是给结论。
+      这也是设计选择——宁可不答，不猜。</li>
+    <li><strong>报告导出依赖浏览器打印</strong>：<code>@page</code> 与 <code>break-inside</code> 已调好，
+      但分页结果仍随浏览器与字号略有差异，页码不会自动出现在打印稿上。</li>
   </ul>
 </section>
 
@@ -600,8 +651,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1</pre>
   <h3>7.1 已完成</h3>
   <p>
     从空仓库到可演示的完整链路：合同上传（PDF / 图片）→ 条款切分 → 法规检索 → 逐项判定 →
-    流式呈现 → 结果落库 → 法规库自查。20 余次提交，84 项测试，三类合同 24 项审查清单，
-    1358 条法规入库。
+    流式呈现 → 结果落库 → 法规库自查。20 余次提交，88 项测试，三类合同 24 项审查清单，
+    五部法律 1825 条入库，9 份样本的评测集里 35 项关注项全部命中。
   </p>
 
   <h3>7.2 过程中的关键判断</h3>
@@ -615,7 +666,6 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1</pre>
 
   <h3>7.3 后续计划</h3>
   <ol>
-    <li><strong>补齐评测集</strong>：9 份标注合同，输出高风险召回率、准确率、依据可溯率，写入文档与演示视频；</li>
     <li><strong>混合检索</strong>：接入 embedding，恢复向量通道，改善「押金」这类同义词缺口；</li>
     <li><strong>改动对照</strong>：原版与修改版并排比对，直观展示"改了什么"；</li>
     <li><strong>报告模板</strong>：允许用户在打印前选择是否附法条原文，控制报告篇幅。</li>

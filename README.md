@@ -35,7 +35,7 @@
 | M5  | 高亮联动                    | ✅ 完成  |
 | M6  | 安全分 + 报告导出              | ✅ 完成  |
 | M7  | 脱敏 / 限流 / 兜底            | ✅ 完成  |
-| M8  | 交付材料                    | 🟡 技术文档完成，演示视频与评测集待补 |
+| M8  | 交付材料                    | 🟡 技术文档、评测集完成，演示视频待录 |
 
 规格文档：[`docs/项目开发文档.md`](docs/项目开发文档.md)（v1.1，实现以此为准）
 
@@ -126,7 +126,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 
 ```
 contract-guard/
-├── docs/                     # 技术文档、部署说明、演示脚本、团队分工
+├── docs/                     # 技术文档、部署说明、演示脚本、评测结果、团队分工
 ├── Dockerfile                # 单镜像：前端构建 + 后端运行（未在本机验证）
 ├── backend/
 │   ├── app/
@@ -136,8 +136,8 @@ contract-guard/
 │   │   ├── models/           # SQLAlchemy ORM
 │   │   ├── schemas/          # Pydantic（与 ORM 严格分离）
 │   │   └── services/         # 业务逻辑：parsing / rag / agent / llm
-│   ├── scripts/              # 建索引、抓语料、端到端冒烟
-│   └── tests/                # 84 项
+│   ├── scripts/              # 建索引、抓语料、冒烟、评测集跑分
+│   └── tests/                # 88 项（含 9 份评测样本）
 └── frontend/
     └── src/
         ├── api/              # http.ts（普通接口）+ review.ts（SSE）
