@@ -30,6 +30,8 @@ BLOCK_TAGS = (
 
 
 def html_to_text(raw: str) -> str:
+    # <head> 里的 <title> 不是正文；不先摘掉，转出来的 PDF 会在开头多一行重复标题
+    raw = re.sub(r"(?is)<head[^>]*>.*?</head>", "", raw)
     raw = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", "", raw)
     for tag in BLOCK_TAGS:
         raw = re.sub(rf"(?i)</?{tag}[^>]*>", "\n", raw)
