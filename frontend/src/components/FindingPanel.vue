@@ -10,14 +10,15 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'select', clauseId: string | null): void }>()
 
-const expanded = ref<Record<string, boolean>>({})
+const expandedId = ref<string | null>(null)
 
+// 同时只展开一条：多卡同开会让列表变成信息瀑布，用户失去"还剩几条"的空间感
 watch(
   () => props.findings.length,
   (n) => {
     const latest = props.findings[n - 1]
-    if (latest && expanded.value[latest.id] === undefined) {
-      expanded.value[latest.id] = latest.confidence >= 0.6
+    if (latest && expandedId.value === null && latest.confidence >= 0.6) {
+      expandedId.value = latest.id
     }
   },
   { immediate: true },
@@ -39,7 +40,7 @@ const PRIORITY: Record<Priority, { label: string; cls: string }> = {
 }
 
 function toggle(id: string) {
-  expanded.value[id] = !expanded.value[id]
+  expandedId.value = expandedId.value === id ? null : id
 }
 
 function focus(finding: Finding) {
@@ -104,32 +105,44 @@ function ordinal(index: number) {
             </span>
             <button
               class="btn-quiet !px-1 !py-0.5"
-              :aria-label="expanded[f.id] ? '收起' : '展开'"
+              :aria-label="expandedId === f.id ? '收起' : '展开'"
               @click.stop="toggle(f.id)"
             >
               <ChevronDown
                 :size="13"
                 class="transition-transform duration-200"
-                :class="expanded[f.id] ? 'rotate-180' : ''"
+                :class="expandedId === f.id ? 'rotate-180' : ''"
               />
             </button>
           </div>
         </div>
 
-        <h3 class="mt-2 font-serif text-[14px] leading-snug text-ink">{{ f.title }}</h3>
-        <p class="mt-1.5 text-[12px] leading-[1.75] text-ink-soft">{{ f.reason }}</p>
+        <h3 class="mt-2 font-serif text-[15px] leading-snug text-ink">{{ f.title }}</h3>
+        <p class="mt-1.5 text-[13.5px] leading-[1.8] text-ink-soft">{{ f.reason }}</p>
 
-        <div v-if="expanded[f.id]" class="mt-3 space-y-3 border-t border-line pt-3">
+        <!-- 依据常驻折叠态：这是产品最有说服力的一点，不该埋在二级展开里 -->
+        <p class="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11.5px] leading-relaxed">
+          <span class="text-ink-faint">依据</span>
+          <template v-if="f.legal_basis.length">
+            <span class="font-serif text-accent">{{ f.legal_basis[0].source }} {{ f.legal_basis[0].article }}</span>
+            <span v-if="f.legal_basis.length > 1" class="num text-ink-faint">
+              +{{ f.legal_basis.length - 1 }}
+            </span>
+          </template>
+          <span v-else class="text-ink-faint">未检索到直接对应的法条</span>
+        </p>
+
+        <div v-if="expandedId === f.id" class="mt-3 space-y-3 border-t border-line pt-3">
           <div>
-            <p class="label">法律依据</p>
+            <p class="label">法条原文</p>
             <template v-if="f.legal_basis.length">
               <div
                 v-for="(b, k) in f.legal_basis"
                 :key="k"
                 class="mt-1.5 border-l border-line-strong pl-2.5"
               >
-                <p class="text-[11px] text-ink-soft">{{ b.source }} {{ b.article }}</p>
-                <p class="mt-0.5 text-[11px] leading-[1.7] text-ink-faint">{{ b.quote }}</p>
+                <p class="text-[12px] text-ink-soft">{{ b.source }} {{ b.article }}</p>
+                <p class="mt-0.5 text-[11.5px] leading-[1.75] text-ink-faint">{{ b.quote }}</p>
               </div>
             </template>
             <p v-else class="mt-1 text-[11px] leading-relaxed text-ink-faint">
@@ -139,12 +152,12 @@ function ordinal(index: number) {
 
           <div v-if="f.impact">
             <p class="label">可能影响</p>
-            <p class="mt-1 text-[11.5px] leading-[1.75] text-ink-soft">{{ f.impact }}</p>
+            <p class="mt-1 text-[12.5px] leading-[1.75] text-ink-soft">{{ f.impact }}</p>
           </div>
 
           <div>
             <p class="label">建议方向</p>
-            <p class="mt-1 text-[11.5px] leading-[1.75] text-ink-soft">{{ f.suggestion }}</p>
+            <p class="mt-1 text-[12.5px] leading-[1.75] text-ink-soft">{{ f.suggestion }}</p>
           </div>
 
           <div v-if="f.negotiation_tip" class="bg-accent-wash px-2.5 py-2">
@@ -154,8 +167,6 @@ function ordinal(index: number) {
             <p class="mt-1 text-[11.5px] leading-[1.7] text-ink-soft">{{ f.negotiation_tip }}</p>
           </div>
         </div>
-
-        <p class="mt-2.5 text-[10px] text-ink-faint/80">仅提示风险，不构成法律意见。</p>
       </div>
     </article>
   </div>

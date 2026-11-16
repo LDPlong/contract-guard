@@ -13,8 +13,11 @@ export default {
         // 墨色三层，替代纯黑
         ink: {
           DEFAULT: '#15171C',
-          soft: '#4E545E',
-          faint: '#8A8F98',
+          soft: '#454B54',
+          // 承载信息的最浅一级：paper 底 4.77:1、白底 4.98:1，过 AA
+          faint: '#6B7078',
+          // 仅用于装饰性分隔、禁用态，不承载需要阅读的文字
+          ghost: '#9AA0A8',
         },
         line: {
           DEFAULT: '#E5E2DA',
@@ -29,7 +32,7 @@ export default {
         },
         risk: {
           high: '#B3261E',
-          medium: '#A96A00',
+          medium: '#8F5A00',
           low: '#2F6B4F',
         },
       },

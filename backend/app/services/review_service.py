@@ -41,6 +41,18 @@ retriever_factory = Retriever
 
 
 
+def _db_clause_id(value: object, clause_id_by_seq: dict[int, str]) -> str | None:
+    """工作流用 c{seq} 作条款 key，落库时映射成数据库 id。
+
+    SSE 之前直接透传了原始 key，导致前端拿到的 clause_id 与 Document.clauses[].id
+    不是一套 ID，原文高亮、点击定位、条款导航全部失效。这里统一在出口处转换。
+    """
+    if isinstance(value, str) and len(value) > 1 and value[0] == "c" and value[1:].isdigit():
+        return clause_id_by_seq.get(int(value[1:]))
+    # 空串也归成 None：前端按"无定位"处理，不要拿空字符串去比 id
+    return value if isinstance(value, str) and value else None
+
+
 def _to_dataclass(rows: list[ClauseORM]) -> list[Clause]:
     result: list[Clause] = []
     for row in rows:
@@ -166,9 +178,26 @@ async def stream_review(document_id: str) -> AsyncIterator[str]:
                         "document_id": document_id,
                         "latency_ms": latency_ms,
                     }
+                    items = payload.get("findings")
+                    if isinstance(items, list):
+                        payload["findings"] = [
+                            {
+                                **f,
+                                "clause_id": _db_clause_id(f.get("clause_id"), clause_id_by_seq),
+                            }
+                            if isinstance(f, dict)
+                            else f
+                            for f in items
+                        ]
                     yield sse_frame("done", payload)
                     return
-                yield sse_frame(event["event"], event["data"])
+                data = event["data"]
+                if event["event"] == "finding" and isinstance(data, dict):
+                    data = {
+                        **data,
+                        "clause_id": _db_clause_id(data.get("clause_id"), clause_id_by_seq),
+                    }
+                yield sse_frame(event["event"], data)
         except Exception as exc:  # noqa: BLE001
             log.exception("review stream failed document=%s", document_id)
             review.status = "failed"

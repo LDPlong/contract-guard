@@ -34,6 +34,16 @@ export async function fetchReview(reviewId: string): Promise<ReviewDetail> {
   return request<ReviewDetail>({ url: `/reviews/${reviewId}`, method: 'GET' })
 }
 
+/** 文档的历史审查记录：进入页面时用它判断有没有现成结果可回看 */
+export async function listDocumentReviews(
+  documentId: string,
+): Promise<{ review_id: string; status: string; safety_score: number | null; started_at: string | null }[]> {
+  return request({
+    url: `/documents/${documentId}/reviews`,
+    method: 'GET',
+  })
+}
+
 /**
  * 8.3 原始 PDF，交给 pdf.js 渲染。
  * 注意：该接口返回二进制流，**不套 {code,message,data} 信封**，

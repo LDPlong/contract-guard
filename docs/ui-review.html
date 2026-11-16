@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContractGuard · 界面评审与优化方案</title>
+<style>
+  :root{
+    --paper:#F6F4EE;
+    --panel:#FFFDF9;
+    --ink:#15171C;
+    --ink-soft:#454B54;
+    --ink-mute:#6B7078;
+    --line:#E3DFD5;
+    --line-soft:#EEEAE0;
+    --navy:#1B3A6B;
+    --navy-soft:#5A7099;
+    --navy-wash:#EDF1F7;
+    --high:#B3261E;
+    --mid:#8F5A00;
+    --low:#2F6B4F;
+    --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+    --serif:"Source Han Serif SC","Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-font-smoothing:antialiased}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:15px;line-height:1.8;
+    padding-bottom:80px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+  h1,h2,h3,h4{font-family:var(--serif);font-weight:600;letter-spacing:-0.01em;margin:0}
+  p{margin:0}
+  a{color:var(--navy);text-decoration:none}
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{border-bottom:1px solid var(--line);background:rgba(246,244,238,.92);position:sticky;top:0;z-index:10;backdrop-filter:blur(6px)}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:52px}
+  .brand{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.02em}
+  .seal{width:24px;height:24px;background:var(--navy);color:#fff;font-family:var(--serif);font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1}
+  .brand small{font-family:var(--serif);color:var(--ink-mute);font-size:12px;letter-spacing:.04em}
+  .topbar .meta{font-size:12px;color:var(--ink-mute);letter-spacing:.04em}
+
+  /* ---------- 通用 ---------- */
+  .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);font-weight:500}
+  .sec{padding-top:64px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:28px}
+  .sec-no{font-family:var(--serif);font-size:12px;color:var(--navy-soft);letter-spacing:.1em}
+  .sec-head h2{font-size:23px}
+  .sec-head .hint{margin-left:auto;font-size:12.5px;color:var(--ink-mute)}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:56px 0 8px}
+  .hero h1{font-size:40px;line-height:1.25;margin:14px 0 18px;max-width:760px}
+  .hero .lead{font-size:16px;line-height:1.9;color:var(--ink-soft);max-width:660px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+  .chip{border:1px solid var(--line);background:var(--panel);padding:5px 11px;font-size:12px;color:var(--ink-soft);letter-spacing:.02em}
+
+  /* ---------- 评分 ---------- */
+  .verdict{display:grid;grid-template-columns:1.35fr 1fr;gap:0;border:1px solid var(--line);background:var(--panel);margin-top:34px}
+  .verdict-main{padding:30px 32px;border-right:1px solid var(--line)}
+  .verdict-main .score{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .verdict-main .num{font-family:var(--serif);font-size:52px;line-height:1;color:var(--navy)}
+  .verdict-main .num small{font-size:14px;color:var(--ink-mute);font-family:var(--sans)}
+  .verdict-main h3{font-size:18px;margin:14px 0 10px}
+  .verdict-main p{font-size:14px;line-height:1.85;color:var(--ink-soft)}
+  .scoretable{padding:26px 28px}
+  .scoretable .row{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:13px}
+  .scoretable .row span:first-child{width:74px;color:var(--ink-soft)}
+  .bar{flex:1;height:3px;background:var(--line-soft);position:relative}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--navy);display:block}
+  .scoretable .row b{font-family:var(--serif);font-size:13px;font-weight:600;width:34px;text-align:right}
+  .scoretable .note{font-size:11.5px;color:var(--ink-mute);margin-top:12px;line-height:1.7}
+
+  /* ---------- 保留项 ---------- */
+  .keep{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .keep div{background:var(--panel);padding:22px 24px}
+  .keep h4{font-size:15px;margin-bottom:6px;display:flex;gap:8px;align-items:baseline}
+  .keep h4 em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--low);letter-spacing:.04em}
+  .keep p{font-size:13px;line-height:1.8;color:var(--ink-soft)}
+
+  /* ---------- 问题卡 ---------- */
+  .group-label{display:flex;align-items:center;gap:10px;margin:38px 0 16px}
+  .group-label .tag{font-size:11px;letter-spacing:.1em;padding:2px 8px;border:1px solid;font-weight:600}
+  .p0{color:var(--high);border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05)}
+  .p1{color:var(--mid);border-color:rgba(143,90,0,.35);background:rgba(143,90,0,.05)}
+  .p2{color:var(--navy);border-color:rgba(27,58,107,.3);background:var(--navy-wash)}
+  .group-label h3{font-size:16px}
+  .group-label .count{font-size:12px;color:var(--ink-mute);margin-left:auto}
+
+  .issue{border:1px solid var(--line);background:var(--panel);margin-bottom:14px}
+  .issue-head{display:flex;gap:14px;align-items:baseline;padding:20px 24px 0}
+  .issue-no{font-family:var(--mono);font-size:11px;color:var(--ink-mute);letter-spacing:.06em;padding-top:5px}
+  .issue-head h4{font-size:17px;line-height:1.5;flex:1}
+  .issue-body{padding:14px 24px 22px 62px;display:grid;grid-template-columns:96px 1fr;gap:9px 18px;font-size:13.5px;line-height:1.85}
+  .issue-body dt{color:var(--ink-mute);font-size:12px;letter-spacing:.06em;padding-top:3px}
+  .issue-body dd{margin:0;color:var(--ink-soft)}
+  .issue-body dd strong{color:var(--ink);font-weight:600}
+  .issue-body dd.fix{color:var(--ink)}
+  code{font-family:var(--mono);font-size:12px;background:#F1EEE6;padding:1px 5px;border:1px solid var(--line-soft);border-radius:2px;color:#2C3138}
+  .bad{color:var(--high);font-weight:600}
+  .good{color:var(--low);font-weight:600}
+
+  /* ---------- 对照 ---------- */
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:12px}
+  .compare > div{background:var(--panel);padding:0}
+  .compare .cap{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:11.5px;letter-spacing:.08em;color:var(--ink-mute)}
+  .compare .cap b{width:6px;height:6px;display:block}
+  .stage{padding:18px 16px;min-height:150px;background:#FBFAF7}
+
+  /* --- 复刻：现状顶栏 --- */
+  .mock-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:nowrap}
+  .mock-doc{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+  .mock-back{width:24px;height:24px;border:1px solid #E5E2DA;background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;color:#8A8F98;flex:none}
+  .mock-doc p{font-family:var(--serif);font-size:12px;color:#15171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mock-doc small{display:block;font-size:9px;color:#8A8F98;font-family:var(--sans);margin-top:2px}
+  .mock-actions{display:flex;align-items:center;gap:8px;flex:none}
+  .mock-score{text-align:right}
+  .mock-score .lbl{font-size:8px;letter-spacing:.1em;color:#8A8F98}
+  .mock-score .v{font-family:var(--serif);font-size:22px;color:var(--low);line-height:1.1}
+  .mock-score .v i{font-style:normal;font-size:9px;color:#8A8F98;font-family:var(--sans)}
+  .mock-score .cap2{font-size:8px;color:#8A8F98}
+  .mock-pill{border:1px solid #D2CEC3;background:#fff;border-radius:999px;padding:4px 10px;font-size:10px;color:#15171C;white-space:nowrap;flex:none}
+
+  /* --- 复刻：现状结论卡 --- */
+  .mock-find{border:1px solid #E5E2DA;border-left:2px solid #2F6B4F;background:#fff;padding:12px}
+  .mock-find .top{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+  .mock-find .idx{font-family:var(--serif);font-size:10px;color:#8A8F98}
+  .mock-find .lv{font-size:8px;color:#2F6B4F;letter-spacing:.04em}
+  .mock-find .cat{font-size:8px;color:#8A8F98}
+  .mock-find .tagx{font-size:8px;color:#8A8F98;border:1px solid #E5E2DA;padding:0 3px}
+  .mock-find h5{font-family:var(--serif);font-size:11.5px;margin:7px 0 5px;color:#15171C;line-height:1.5}
+  .mock-find .rs{font-size:9.5px;line-height:1.85;color:#4E545E}
+  .mock-find .lbl2{font-size:8px;letter-spacing:.1em;color:#8A8F98;margin-top:9px}
+  .mock-find .quote{border-left:1px solid #D2CEC3;padding-left:7px;margin-top:5px;font-size:8.5px;line-height:1.7;color:#8A8F98}
+  .mock-find .disc{margin-top:9px;font-size:8px;color:rgba(138,143,152,.8)}
+
+  /* --- 复刻：改后结论卡 --- */
+  .mock-find2{background:#fff;border:1px solid #E3DFD5;padding:0}
+  .mock-find2 .head{display:flex;align-items:center;gap:8px;padding:12px 13px 0}
+  .mock-find2 .lvpill{font-size:9px;font-weight:600;letter-spacing:.04em;color:#2F6B4F;background:rgba(47,107,79,.08);padding:2px 7px}
+  .mock-find2 .no{margin-left:auto;font-size:10px;color:#6B7078;font-variant-numeric:tabular-nums}
+  .mock-find2 h5{font-family:var(--serif);font-size:13px;margin:8px 13px 5px;line-height:1.5;color:#15171C}
+  .mock-find2 .rs{font-size:10.5px;line-height:1.8;color:#454B54;margin:0 13px}
+  .mock-find2 .foot{display:flex;align-items:center;gap:6px;margin-top:11px;padding:8px 13px;border-top:1px solid #EEEAE0;font-size:9px;color:#6B7078;background:#FCFBF7}
+  .mock-find2 .foot b{color:#1B3A6B;font-weight:600}
+
+  /* --- 复刻：移动端 --- */
+  .phone{width:100%;max-width:300px;margin:0 auto;border:1px solid #DAD6CB;background:#FBFAF7;padding:10px}
+  .mock-mob-top{display:flex;align-items:flex-start;gap:8px}
+  .mock-mob-top .back{width:26px;height:26px;border:1px solid #E5E2DA;background:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#8A8F98}
+  .mock-mob-top .ttl{font-family:var(--serif);font-size:12px;color:#15171C}
+  .mock-mob-top .sub{font-size:9px;color:#8A8F98;margin-top:3px}
+  .mock-mob-btns{display:flex;gap:6px;margin-top:8px;align-items:center}
+  .mock-round{width:30px;height:66px;border-radius:999px;border:1px solid #D2CEC3;background:#fff;font-size:8px;line-height:1.3;color:#15171C;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;gap:1px}
+  .mock-mob2 .row1{display:flex;align-items:center;gap:8px}
+  .mock-mob2 .row1 .ttl{font-family:var(--serif);font-size:12px;color:#15171C;flex:1;min-width:0}
+  .mock-icon-btn{width:26px;height:26px;border:1px solid #E3DFD5;background:#fff;display:flex;align-items:center;justify-content:center;color:#454B54;flex:none}
+  .mock-icon-btn svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.4}
+  .mock-concl{margin-top:10px;border:1px solid #E3DFD5;background:#fff;padding:10px 11px}
+  .mock-concl .big{font-family:var(--serif);font-size:26px;color:#2F6B4F;line-height:1}
+  .mock-concl .big i{font-style:normal;font-size:10px;color:#6B7078;font-family:var(--sans)}
+  .mock-concl .line{display:flex;gap:10px;margin-top:8px;font-size:9px;color:#454B54;font-variant-numeric:tabular-nums}
+
+  /* ---------- 表格 ---------- */
+  .tablewrap{overflow-x:auto}
+  .tablewrap table{min-width:640px}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);border:1px solid var(--line)}
+  th{text-align:left;font-weight:500;font-size:11px;letter-spacing:.08em;color:var(--ink-mute);padding:10px 14px;border-bottom:1px solid var(--line);background:#FBFAF7;text-transform:uppercase}
+  td{padding:11px 14px;border-bottom:1px solid var(--line-soft);color:var(--ink-soft);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.sw{width:14px}
+  td.sw span{display:block;width:12px;height:12px;border:1px solid rgba(0,0,0,.08);margin-top:4px}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* ---------- 计划 ---------- */
+  .plan{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .plan > div{background:var(--panel);padding:20px 22px}
+  .plan .batch{font-size:11px;letter-spacing:.1em;color:var(--navy-soft)}
+  .plan h4{font-size:15px;margin:7px 0 4px}
+  .plan .est{font-size:12px;color:var(--ink-mute);margin-bottom:12px}
+  .plan ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.9;color:var(--ink-soft)}
+
+  .dont{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 28px;font-size:13.5px;line-height:1.8;color:var(--ink-soft)}
+  .dont div{display:flex;gap:9px}
+  .dont i{font-style:normal;color:var(--high);font-family:var(--mono);font-size:12px;padding-top:2px}
+  .dont b{color:var(--ink)}
+
+  footer{margin-top:64px;border-top:1px solid var(--line);padding-top:20px;font-size:12px;color:var(--ink-mute);line-height:1.9}
+
+  @media (max-width:860px){
+    .wrap{padding:0 18px}
+    .hero h1{font-size:28px}
+    .verdict,.keep,.compare,.plan,.dont{grid-template-columns:1fr}
+    .verdict-main{border-right:0;border-bottom:1px solid var(--line)}
+    .issue-body{grid-template-columns:1fr;padding-left:24px}
+    .issue-body dt{padding-top:8px}
+    .sec-head .hint{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <span class="seal">契</span>
+      <span>ContractGuard</span>
+      <small>界面评审</small>
+    </div>
+    <div class="meta">2026-11-15 · v1</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <p class="label">UI Review · 提案</p>
+    <h1>已脱离模板感，但结论没站在第一排</h1>
+    <p class="lead">
+      视觉语言（纸感、墨色、锐角、法条可追溯）已经形成自己的性格，这是大多数参赛作品做不到的。
+      真正拖后腿的是两件事：<strong>信息层级</strong>——用户最该先看到的"哪里有问题"被压成 11px 小字；
+      以及<strong>移动端根本没有适配</strong>——390px 下按钮被压成竖排单字、PDF 横向溢出。
+    </p>
+    <div class="chips">
+      <span class="chip">覆盖 4 个页面 + 390px 移动端</span>
+      <span class="chip">依据：源码 + 实机渲染</span>
+      <span class="chip">19 项问题 · P0 5 / P1 9 / P2 5</span>
+    </div>
+
+    <div class="verdict">
+      <div class="verdict-main">
+        <div class="score"><span class="num">62<small>/100</small></span></div>
+        <h3>气质在线，可用性欠账</h3>
+        <p>
+          桌面端 1440px 是能看的，甚至好看。但只要换到手机、或者把眼睛从"欣赏"切到"完成任务"，
+          结构问题立刻暴露：结论区与工具区混在一行、审查过程占着永久位置、免责声明刷三遍、
+          次要文字对比度 3.11:1（AA 要求 4.5:1）却承载着法条依据和置信度。
+          好消息是这些都不需要重构，改 token、改层级、补断点即可。
+        </p>
+      </div>
+      <div class="scoretable">
+        <div class="row"><span>视觉气质</span><div class="bar"><i style="width:86%"></i></div><b>8.6</b></div>
+        <div class="row"><span>信息层级</span><div class="bar"><i style="width:52%"></i></div><b>5.2</b></div>
+        <div class="row"><span>可读性</span><div class="bar"><i style="width:42%"></i></div><b>4.2</b></div>
+        <div class="row"><span>响应式</span><div class="bar"><i style="width:30%"></i></div><b>3.0</b></div>
+        <div class="row"><span>一致性</span><div class="bar"><i style="width:70%"></i></div><b>7.0</b></div>
+        <div class="row"><span>细节完成度</span><div class="bar"><i style="width:62%"></i></div><b>6.2</b></div>
+        <p class="note">评分口径：参赛作品的"评委 30 秒第一印象"与"真实用户能否完成任务"各占一半权重。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 保留 ================= -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-no">01</span>
+      <h2>先明确：这几件事不要动</h2>
+      <span class="hint">改版最容易死在"什么都想优化"</span>
+    </div>
+    <div class="keep">
+      <div>
+        <h4>纸感底色 + 墨色三层 <em>保留</em></h4>
+        <p>#FBFAF7 暖白替代纯白、#15171C 替代纯黑，长时间读合同眼睛不累，也贴合"法律文书"的心智。这是全站最值钱的一层，换掉就变成又一个 Tailwind 模板。</p>
+      </div>
+      <div>
+        <h4>2px 锐角 + 几乎不用阴影 <em>保留</em></h4>
+        <p>圆角卡片 + 大阴影是 AI 生成页面的典型指纹。这里刻意走印刷品路线，判断是对的。只有 pill 按钮做了例外，那是功能性选择，可以留。</p>
+      </div>
+      <div>
+        <h4>每条结论必带法条编号 + 原文引用 <em>保留</em></h4>
+        <p>这是产品真正的差异点——"AI 说的"变成"民法典第七百三十三条说的"。问题只在于它现在被排成 11px 灰字埋在展开区里，价值被浪费了（见 P1-04）。</p>
+      </div>
+      <div>
+        <h4>「契」印章字标 <em>保留</em></h4>
+        <p>比任何图标库的盾牌/放大镜都有辨识度，而且和藏青色、衬线标题是同一套语言。别换成通用 icon。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= P0 ================= -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-no">02</span>
+      <h2>问题清单</h2>
+      <span class="hint">按"是否会毁掉一次演示"排序</span>
+    </div>
+
+    <div class="group-label">
+      <span class="tag p0">P0</span>
+      <h3>必修：现在就会出事</h3>
+      <span class="count">5 项 · 约 2.5 小时</span>
+    </div>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P0-01</span>
+        <h4>390px 下顶栏按钮被压成竖排单字，变成三个圆圈</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>ReviewView.vue</code> 第 105–124 行，标题行右侧的动作区</dd>
+        <dt>现象</dt>
+        <dd>「导出报告」「重新审查」四个字逐个换行，<strong>按钮被撑成 80px 高的圆球</strong>，安全分被挤到左上，整条顶栏失去阅读顺序。这是评审当天一定会被看到的画面。</dd>
+        <dt>原因</dt>
+        <dd><code>flex items-center gap-4</code> 既不允许换行，也没给按钮 <code>shrink-0</code>，flex 收缩把中文按字断行。</dd>
+        <dt>改法</dt>
+        <dd class="fix">容器改 <code>flex flex-wrap items-center gap-3</code>；按钮补 <code>shrink-0 whitespace-nowrap</code>。<br>
+        ≤640px 时「导出报告」降级为 40×40 的图标按钮（<code>Printer</code>），只留「重新审查」文字，两个按钮的总宽控制在 200px 内。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P0-02</span>
+        <h4>移动端「原版」PDF 横向溢出，右侧被裁掉</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>ClauseViewer.vue</code> <code>paintPages()</code> 第 80–81 行</dd>
+        <dt>现象</dt>
+        <dd>手机上看合同，页面右半截看不见——"合同编号"的填空线、"出租人 / 承租人"签名栏全在可视区外，而且<strong>没有横向滚动条，等于看不到也滑不到</strong>。</dd>
+        <dt>原因</dt>
+        <dd>缩放基准 <code>Math.max(available, 460)</code> 的 460px 硬下限：390px 屏上容器只有约 330px，页面仍按 460px 渲染。</dd>
+        <dt>改法</dt>
+        <dd class="fix">下限降到 <code>320</code>，并补 <code>Math.min(available, 容器宽)</code> 双重约束；<code>≤640px</code> 时<strong>初始 <code>mode</code> 直接取 <code>'text'</code></strong>，不让用户在没有缩放能力的小屏上看原版排版。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P0-03</span>
+        <h4>手机首屏给的是合同封面，结论要滑两屏才出现</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>ReviewView.vue</code> 第 186 行的栅格</dd>
+        <dt>现象</dt>
+        <dd>桌面端是"原文左 / 结论右"，<code>lg:</code> 断点一撤，原文整块排到最前。用户上传合同后<strong>第一眼看到的是「广东省住房租赁合同示范文本」封面</strong>和一堆空白填空线，看不到任何一条风险。</dd>
+        <dt>原因</dt>
+        <dd>DOM 顺序即视觉顺序，没有为移动端做优先级重排。</dd>
+        <dt>改法</dt>
+        <dd class="fix">&lt;1024px 时先渲染结论区（分数 + 前三条命中的条款），原文收进「查看原文」全屏抽屉。桌面端保持现状。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P0-04</span>
+        <h4>次要文字对比度 3.11:1，却承载着法条依据和置信度</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>tailwind.config.js</code> → <code>ink.faint = #8A8F98</code>；全站 10–11px 说明文字</dd>
+        <dt>现象</dt>
+        <dd>实测：paper 底 <span class="bad">3.11:1</span>、白底 <span class="bad">3.25:1</span>。WCAG AA 正文要求 4.5:1，而它被用在<strong>法条引用、置信度、审查耗时、命中条款标签、页脚免责声明</strong>上——恰好都是"需要被读到"的内容。</dd>
+        <dt>原因</dt>
+        <dd>token 值偏亮，又被大量小字号叠加，两个不利因素相乘。</dd>
+        <dt>改法</dt>
+        <dd class="fix"><code>ink.faint</code> → <strong>#6B7078</strong>（paper 4.77:1 / white 4.98:1，过线且不发黑）；另设 <code>ink.ghost = #9AA0A8</code> 只给装饰性分隔和禁用态，不承载信息。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P0-05</span>
+        <h4>正文字号整体偏小：中文 12px 读起来费劲</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd>结论卡 reason 12px、法条 11px、<code>.label</code> 10px；原文 12.5px</dd>
+        <dt>现象</dt>
+        <dd>中文没有西文的小写字母高度，12px 下的汉字笔画糊在一起。评委在投影或笔记本上看，第一批被放弃的就是这些字。</dd>
+        <dt>原因</dt>
+        <dd>整体字号表是照着"信息密度优先"定的，但这份产品的阅读负担本来就重（法条原文 + 三段分析）。</dd>
+        <dt>改法</dt>
+        <dd class="fix">正文基线 14px，辅助 12px，label 11px（配 <code>tracking .08em</code>）。结论卡：标题 13→15px、reason 12→13.5px/1.85、法条 11→12.5px；原文条款 12.5→15px/1.95。行宽控制在 34–38 个汉字。</dd>
+      </div>
+    </article>
+
+    <!-- ================= P1 ================= -->
+    <div class="group-label">
+      <span class="tag p1">P1</span>
+      <h3>该修：决定作品是"能用"还是"专业"</h3>
+      <span class="count">9 项 · 约 5 小时</span>
+    </div>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-01</span>
+        <h4>结论没有第一层级：安全分和工具按钮抢同一行</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>ReviewView.vue</code> 第 105–124 行</dd>
+        <dt>现象</dt>
+        <dd>「安全分 88 / 条款较规范」与「导出报告 / 重新审查」并排，视觉权重几乎相同；而"6 处低风险"这个真正的结论，被排成下一行 11px 的 <code>高 0 中 0 低 6</code>。</dd>
+        <dt>原因</dt>
+        <dd>把"结果展示"和"页面操作"塞进了同一个 flex 容器。</dd>
+        <dt>改法</dt>
+        <dd class="fix">拆成两层：<strong>标题行</strong>只放文档信息 + 图标化工具；<strong>结论条</strong>独立成块，给分数、三档计数和一句话摘要，占右栏顶部 88px。<span style="color:var(--navy)">见下方对照图 A。</span></dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-02</span>
+        <h4>「审查过程」跑完后仍占着 190px 固定高度</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>AgentTrace.vue</code>，以及它在右栏 flex 列中的位置</dd>
+        <dt>现象</dt>
+        <dd>流式结束后，四个已完成步骤仍然完整展示，把结论列表往下推。审查过程是<strong>过程信息</strong>，结论才是<strong>结果信息</strong>，过程不该长期占用结果的位置。</dd>
+        <dt>改法</dt>
+        <dd class="fix"><code>streaming=false</code> 后折叠成一行：<code>✓ 审查完成 · 9.6s · 10/10</code>，点击展开回看步骤；流式期间保持展开，正好当进度反馈。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-03</span>
+        <h4>命中条款 chips 顺序是随机的（第三条 → 第十条 → 第九条…）</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>ReviewView.vue</code> <code>riskyClauses</code>，按 <code>store.findings</code> 顺序渲染</dd>
+        <dt>现象</dt>
+        <dd>用户想找"第十条"时，得从左到右扫一遍——因为顺序既不是条款序，也不是风险序，而是模型返回顺序。这是<strong>看起来没问题、用起来很烦</strong>的那类细节。</dd>
+        <dt>改法</dt>
+        <dd class="fix">按 <code>clause_no</code> 的数字部分升序；如果希望引导谈判顺序，就按「必守 → 可谈 → 可让步」分组，组内再按条款号。二选一，别混。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-04</span>
+        <h4>法条依据被 11px 灰字埋在展开区——这是产品最强的点，却是最弱的视觉</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>FindingPanel.vue</code> 第 122–138 行</dd>
+        <dt>现象</dt>
+        <dd>「法律依据 / 民法典 第七百三十三条 + 引文」三行 11px <code>ink-faint</code>，缩进在卡片深处，需要先展开、再往下读。而它恰恰是"可信 AI"的全部证据。</dd>
+        <dt>改法</dt>
+        <dd class="fix">折叠态就在卡片底部露一行：<code>依据 民法典 第七百三十三条</code>（12.5px，藏青色，可点跳法规库）；展开后才显示引文全文。把"可追溯"做成卡片的一等公民，而不是脚注。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-05</span>
+        <h4>结论卡默认展开，一次点开三条就变成信息瀑布</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>FindingPanel.vue</code> <code>expanded</code> 状态</dd>
+        <dt>现象</dt>
+        <dd>每条展开后有"法律依据 / 可能影响 / 建议方向 / 沟通建议"四段，单卡能到 400px 高。多卡同开时，用户失去"还剩几条"的空间感。</dd>
+        <dt>改法</dt>
+        <dd class="fix">改成手风琴：同时只展开一条，切换时收起上一条；首条默认展开保留，但只展开到"原因"段，依据/影响/建议做成二级展开。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-06</span>
+        <h4>免责声明刷了三遍，稀释了每一条结论的分量</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd>footer（<code>App.vue</code> 92 行）、<strong>每张结论卡底部</strong>（<code>FindingPanel.vue</code> 158 行）、答疑面板底部</dd>
+        <dt>现象</dt>
+        <dd>同一句话在滚动区里重复出现 6 次以上，读者的注意力被训练成"跳过灰字"，连真需要看的法条也一起被跳过。</dd>
+        <dt>改法</dt>
+        <dd class="fix">删掉结论卡里的那句，保留 footer 一处 + 导出报告页脚一处 + 答疑面板一处。三处都是"边缘位置"，符合免责声明的实际作用。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-07</span>
+        <h4>法规库两个搜索框，用户不知道该用哪个</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>LawLibraryView.vue</code>：页头「检索条文，如：押金 返还」+ 列表头「在本法规内筛选」</dd>
+        <dt>现象</dt>
+        <dd>两个输入框，都在页面中部，视觉上像同一个功能的两种样子。用户要么两边都试，要么两边都不敢用。</dd>
+        <dt>改法</dt>
+        <dd class="fix">合并成一个：搜索框固定在页头，占位文案随侧栏选中项变化——选《民法典》时显示「在民法典内检索，共 1260 条」，点全库显示「检索五部法律」。侧栏加"全部法规"项作为作用域开关。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-08</span>
+        <h4>法规列表每条都重复「民法典」，占掉行首最贵的位置</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>LawLibraryView.vue</code> 条文行：<code>第一条</code> <span style="color:#8A8F98">民法典</span></dd>
+        <dt>现象</dt>
+        <dd>同一部法下面 1260 行都在重复"民法典"，等于把最容易扫读的左侧位置浪费在常量上。</dd>
+        <dt>改法</dt>
+        <dd class="fix">单一法视图下省略法名，只留条号；跨法检索结果里才显示来源。条号用衬线、字号 +1，法名降为后缀小字。</dd>
+      </div>
+    </article>
+
+    <article class="issue">
+      <div class="issue-head">
+        <span class="issue-no">P1-09</span>
+        <h4>右下角「问」按钮压在结论卡上</h4>
+      </div>
+      <div class="issue-body">
+        <dt>位置</dt>
+        <dd><code>AssistantDock.vue</code>，<code>fixed right-5 bottom-6</code></dd>
+        <dt>现象</dt>
+        <dd>在审查台里，它正好盖住右栏结论卡的右下角（截图中遮住了"建议方向"的末行）。而审查台恰恰是最需要"边看边问"的场景。</dd>
+        <dt>改法</dt>
+        <dd class="fix">审查台内把入口内联到右栏底部：<code>就这份合同提问 →</code>；全局浮动按钮只在首页/法规库/说明页出现。既解决遮挡，也让"提问"和"当前合同"建立上下文关系。</dd>
+      </div>
+    </article>
+
+    <!-- ================= P2 表格 ================= -->
+    <div class="group-label">
+      <span class="tag p2">P2</span>
+      <h3>可选：锦上添花，时间允许再做</h3>
+      <span class="count">5 项</span>
+    </div>
+
+    <div class="tablewrap"><table>
+      <thead>
+        <tr><th style="width:56px">编号</th><th style="width:220px">问题</th><th>建议</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">P2-01</td>
+          <td>「条款 / 原版」分段控件是 0 圆角，全局按钮是 pill</td>
+          <td>分段控件改 2px 圆角并给内边距，与卡片同一套棱角；或整体改 pill（二选一，别留第三种）。</td>
+        </tr>
+        <tr>
+          <td class="num">P2-02</td>
+          <td>首页主按钮纯黑、答疑按钮藏青，两个"重"色抢注意力</td>
+          <td>主按钮改藏青实心（#1B3A6B，白字 11.27:1），纯黑只留给移动端的最终提交动作。</td>
+        </tr>
+        <tr>
+          <td class="num">P2-03</td>
+          <td>卡片、统计条、分隔全靠 1px 边框，页面像表格</td>
+          <td>容器区用 <code>paper-deep</code> 底色分层，白卡去掉四边框只留 hairline；整页边框数量砍掉约 1/3。</td>
+        </tr>
+        <tr>
+          <td class="num">P2-04</td>
+          <td>chip 悬停浮层固定 220px，贴右边缘会被裁；触控目标仅约 20px 高</td>
+          <td>浮层加边界翻转（左/右自动对齐）；移动端 chip 与分段控件 <code>min-h:36px</code>，符合 44px 触控建议的近似值。</td>
+        </tr>
+        <tr>
+          <td class="num">P2-05</td>
+          <td>PDF 视图默认打开，但首屏是封面，看不到任何命中位置</td>
+          <td>PDF 就绪后自动 <code>scrollIntoView</code> 到第一条高亮条款；或默认停在"条款"视图，把原版当第二个 tab。</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ================= 对照 ================= -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-no">03</span>
+      <h2>三处改稿示意</h2>
+      <span class="hint">按修改建议重绘，非最终稿</span>
+    </div>
+
+    <!-- A -->
+    <p class="label" style="margin-bottom:10px">A · 审查台顶栏：结论上桌，工具退后</p>
+    <div class="compare">
+      <div>
+        <div class="cap"><b style="background:#B3261E"></b>现在</div>
+        <div class="stage">
+          <div class="mock-toolbar">
+            <div class="mock-doc">
+              <span class="mock-back">←</span>
+              <div style="min-width:0">
+                <p>lease_gd.pdf</p>
+                <small>房屋租赁合同 · 16 条条款</small>
+              </div>
+            </div>
+            <div class="mock-actions">
+              <div class="mock-score">
+                <div class="lbl">安全分</div>
+                <div class="v">88<i>/100</i></div>
+                <div class="cap2">条款较规范</div>
+              </div>
+              <span class="mock-pill">导出报告</span>
+              <span class="mock-pill">重新审查</span>
+            </div>
+          </div>
+          <p style="margin-top:14px;font-size:9px;color:#8A8F98;border-top:1px solid #E5E2DA;padding-top:6px">
+            高 0　中 0　低 6　命中条款 第三条 第十条 第九条 第七条 第一条
+          </p>
+          <p style="font-size:9.5px;color:#B3261E;line-height:1.7;margin-top:8px">
+            症状：分数与按钮同级 → 用户先看到"操作"，后看到"结论"；命中条款顺序随机。
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="cap"><b style="background:#2F6B4F"></b>改后</div>
+        <div class="stage">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mock-back">←</span>
+            <div style="min-width:0;flex:1">
+              <p style="font-family:var(--serif);font-size:12px;color:#15171C">lease_gd.pdf</p>
+              <small style="font-size:9px;color:#6B7078">房屋租赁合同 · 16 条 · 审查完成 9.6s</small>
+            </div>
+            <span class="mock-icon-btn"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v6H8z"/></svg></span>
+            <span class="mock-icon-btn"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg></span>
+          </div>
+
+          <div style="margin-top:12px;border:1px solid #E3DFD5;background:#fff;padding:11px 12px">
+            <div style="display:flex;align-items:flex-end;gap:12px">
+              <div>
+                <div style="font-size:8px;letter-spacing:.1em;color:#6B7078">安全分</div>
+                <div style="font-family:var(--serif);font-size:30px;line-height:1.1;color:#2F6B4F">88<i style="font-style:normal;font-size:10px;color:#6B7078">/100</i></div>
+              </div>
+              <div style="flex:1;display:flex;gap:6px;padding-bottom:4px">
+                <span style="flex:1;border-left:2px solid #B3261E;padding-left:5px;font-size:8.5px;color:#454B54">高<b style="font-size:12px;display:block;color:#15171C">0</b></span>
+                <span style="flex:1;border-left:2px solid #8F5A00;padding-left:5px;font-size:8.5px;color:#454B54">中<b style="font-size:12px;display:block;color:#15171C">0</b></span>
+                <span style="flex:1;border-left:2px solid #2F6B4F;padding-left:5px;font-size:8.5px;color:#454B54">低<b style="font-size:12px;display:block;color:#15171C">6</b></span>
+              </div>
+            </div>
+            <p style="margin-top:8px;font-size:9.5px;color:#454B54;line-height:1.7;border-top:1px solid #EEEAE0;padding-top:7px">
+              条款较规范。6 处低风险集中在押金、转租与提前退租，另有 6 项为空自填项需人工核对。
+            </p>
+          </div>
+          <p style="font-size:9px;color:#2F6B4F;line-height:1.7;margin-top:8px">
+            结论独占一条，工具降为 24px 图标；三档计数用左侧色条承载语义，不靠彩字。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <p class="label" style="margin:26px 0 10px">B · 结论卡：折叠态就要说清"哪条、多严重、依据什么"</p>
+    <div class="compare">
+      <div>
+        <div class="cap"><b style="background:#B3261E"></b>现在</div>
+        <div class="stage">
+          <div class="mock-find">
+            <div class="top">
+              <span class="idx">01</span>
+              <span class="lv">低风险</span>
+              <span class="cat">押金</span>
+              <span class="tagx">待复核</span>
+              <span class="cat">· 第三条</span>
+            </div>
+            <h5>押金条款未约定退还条件与时限</h5>
+            <p class="rs">合同第三条约定了押金金额及支付时间，未明确押金退还的条件、扣减情形和退还时限；第四条虽约定交验并结清费用，但未与押金退还挂钩…</p>
+            <p class="lbl2">法律依据</p>
+            <p class="quote">民法典 第七百三十三条<br>租赁期限届满，承租人应当返还租赁物…</p>
+            <p class="lbl2">可能影响</p>
+            <p class="rs">可能损失已支付的押金 / 预付款</p>
+            <p class="disc">仅提示风险，不构成法律意见。</p>
+          </div>
+          <p style="font-size:9.5px;color:#B3261E;line-height:1.7;margin-top:8px">
+            症状：四段并列、全同字号，扫读时找不到落点；免责声明还占了一行。
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="cap"><b style="background:#2F6B4F"></b>改后</div>
+        <div class="stage">
+          <div class="mock-find2">
+            <div class="head">
+              <span class="lvpill">低风险</span>
+              <span style="font-size:9px;color:#6B7078;background:#F4F2EB;padding:1px 5px">押金</span>
+              <span class="no">第三条 01</span>
+            </div>
+            <h5>押金未约定退还条件与时限</h5>
+            <p class="rs">押金退还的条件、扣减情形和时限均未写明，房东可能以"房屋损耗"为由长期拖延退还。</p>
+            <div class="foot">
+              <b>依据</b> 民法典 第七百三十三条 · 第四百九十六条
+              <span style="margin-left:auto">展开 ↓</span>
+            </div>
+          </div>
+          <p style="font-size:9.5px;color:#2F6B4F;line-height:1.7;margin-top:8px">
+            改后：等级做成淡底实体块（不靠彩字），条款号右对齐；依据常驻折叠态；影响收成一句人话。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <p class="label" style="margin:26px 0 10px">C · 移动端：先给结论，别先给封面</p>
+    <div class="compare">
+      <div>
+        <div class="cap"><b style="background:#B3261E"></b>现在（390px 实机）</div>
+        <div class="stage">
+          <div class="phone">
+            <div class="mock-mob-top">
+              <span class="back">←</span>
+              <div style="min-width:0;flex:1">
+                <div class="ttl">lease_gd.pdf</div>
+                <div class="sub">房屋租赁合同 · 16 条条款</div>
+              </div>
+            </div>
+            <div class="mock-mob-btns">
+              <div>
+                <div style="font-size:7px;color:#8A8F98">安全分</div>
+                <div style="font-family:var(--serif);font-size:20px;color:#2F6B4F;line-height:1.1">88<i style="font-style:normal;font-size:8px;color:#8A8F98">/100</i></div>
+              </div>
+              <div class="mock-round"><span>导</span><span>出</span><span>报</span><span>告</span></div>
+              <div class="mock-round"><span>重</span><span>新</span><span>审</span><span>查</span></div>
+            </div>
+            <p style="font-size:8.5px;color:#B3261E;margin-top:8px;line-height:1.6">↑ 按钮被压成竖排单字</p>
+            <div style="margin-top:8px;height:64px;background:#fff;border:1px solid #E5E2DA;display:flex;align-items:center;justify-content:center;font-size:8.5px;color:#8A8F98">
+              合同原文（封面 · 占满首屏）
+            </div>
+            <div style="margin-top:7px;background:#fff;border:1px solid #E5E2DA;padding:9px 10px;font-size:8.5px;color:#8A8F98;line-height:1.6">
+              第一条　甲方（出租人）……
+            </div>
+            <div style="margin-top:6px;background:#fff;border:1px solid #E5E2DA;padding:9px 10px;font-size:8.5px;color:#8A8F98;line-height:1.6">
+              第二条　租赁期限……
+            </div>
+          </div>
+          <p style="font-size:9.5px;color:#B3261E;line-height:1.7;margin-top:8px">症状：首屏没有任何一条风险；PDF 右侧被裁，滑不到。</p>
+        </div>
+      </div>
+      <div>
+        <div class="cap"><b style="background:#2F6B4F"></b>改后</div>
+        <div class="stage">
+          <div class="phone mock-mob2">
+            <div class="row1">
+              <span class="mock-back" style="width:22px;height:22px">←</span>
+              <div class="ttl">lease_gd.pdf</div>
+              <span class="mock-icon-btn">⋯</span>
+            </div>
+            <div style="font-size:9px;color:#6B7078;margin-top:4px">房屋租赁合同 · 16 条</div>
+
+            <div class="mock-concl">
+              <div style="display:flex;align-items:flex-end;gap:8px">
+                <div class="big">88<i>/100</i></div>
+                <div style="font-size:9px;color:#454B54;line-height:1.5;padding-bottom:2px">条款较规范<br><span style="color:#6B7078">6 处低风险</span></div>
+              </div>
+              <div class="line"><span>高 0</span><span>中 0</span><span>低 6</span><span style="margin-left:auto;color:#1B3A6B">原文 ›</span></div>
+            </div>
+
+            <div style="margin-top:8px;background:#fff;border:1px solid #E3DFD5;padding:9px 10px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:8px;color:#2F6B4F;background:rgba(47,107,79,.08);padding:1px 5px;font-weight:600">低风险</span>
+                <span style="font-size:8.5px;color:#6B7078;margin-left:auto">第三条</span>
+              </div>
+              <div style="font-family:var(--serif);font-size:10.5px;margin-top:6px;line-height:1.5;color:#15171C">押金未约定退还条件与时限</div>
+            </div>
+            <div style="margin-top:6px;background:#fff;border:1px solid #E3DFD5;padding:9px 10px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:8px;color:#2F6B4F;background:rgba(47,107,79,.08);padding:1px 5px;font-weight:600">低风险</span>
+                <span style="font-size:8.5px;color:#6B7078;margin-left:auto">第七条</span>
+              </div>
+              <div style="font-family:var(--serif);font-size:10.5px;margin-top:6px;line-height:1.5;color:#15171C">转租未约定书面同意方式</div>
+            </div>
+          </div>
+          <p style="font-size:9.5px;color:#2F6B4F;line-height:1.7;margin-top:8px">改后：结论条 + 前两条风险占首屏；工具收进「⋯」；原文改成抽屉。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TOKEN ================= -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-no">04</span>
+      <h2>Token 迁移表</h2>
+      <span class="hint">对比度按实际底色实测</span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead>
+        <tr>
+          <th style="width:34px"></th>
+          <th style="width:150px">Token</th>
+          <th style="width:110px">现在</th>
+          <th style="width:110px">改为</th>
+          <th>理由 / 实测对比度</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="sw"><span style="background:#8A8F98"></span><span style="background:#6B7078;margin-top:3px"></span></td>
+          <td><code>ink.faint</code></td>
+          <td class="num">#8A8F98</td>
+          <td class="num"><strong>#6B7078</strong></td>
+          <td>3.11:1 → <span class="good">4.77:1</span>（paper）；白底 4.98:1。全站承载法条、置信度、耗时的颜色，必须过 AA。</td>
+        </tr>
+        <tr>
+          <td class="sw"><span style="background:#9AA0A8"></span></td>
+          <td><code>ink.ghost</code> <em style="font-style:normal;color:#6B7078">新增</em></td>
+          <td class="num">—</td>
+          <td class="num">#9AA0A8</td>
+          <td>仅用于禁用态、分隔符、装饰性点线；不承载任何需要阅读的信息。</td>
+        </tr>
+        <tr>
+          <td class="sw"><span style="background:#A96A00"></span><span style="background:#8F5A00;margin-top:3px"></span></td>
+          <td><code>risk.medium</code></td>
+          <td class="num">#A96A00</td>
+          <td class="num"><strong>#8F5A00</strong></td>
+          <td>4.42:1 → <span class="good">5.78:1</span>。原值卡在 AA 线下 0.08，且用于 10px 标签，"中风险"读不清很讽刺。</td>
+        </tr>
+        <tr>
+          <td class="sw"><span style="background:#FBFAF7"></span></td>
+          <td><code>paper</code></td>
+          <td class="num">#FBFAF7</td>
+          <td class="num">不变</td>
+          <td>暖白地子是全站气质来源，保留。</td>
+        </tr>
+        <tr>
+          <td class="sw"><span style="background:#15171C"></span></td>
+          <td><code>ink</code></td>
+          <td class="num">#15171C</td>
+          <td class="num">不变</td>
+          <td>17.18:1，正文与标题的对比度留足。</td>
+        </tr>
+        <tr>
+          <td class="sw"><span style="background:#D2CEC3"></span></td>
+          <td><code>line.strong</code></td>
+          <td class="num">#D2CEC3</td>
+          <td class="num">#D9D4C8</td>
+          <td>略降饱和，弱化"表格感"；边框只用于分区，不用于强调。</td>
+        </tr>
+      </tbody>
+    </table></div>
+
+    <p class="label" style="margin:26px 0 10px">字号基线</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th style="width:190px">用途</th><th style="width:130px">现在</th><th style="width:150px">建议</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>结论卡标题</td><td class="num">14px / 1.4</td><td class="num">15px / 1.45</td><td>衬线加 1px，中文在衬线下需要更大字号才站得住。</td></tr>
+        <tr><td>结论卡正文（原因 / 影响 / 建议）</td><td class="num">12px / 1.75</td><td class="num">13.5px / 1.85</td><td>面板宽 480px，13.5px 约 30 字/行，最舒服的区间。</td></tr>
+        <tr><td>法条引文</td><td class="num">11px / 1.7</td><td class="num">12.5px / 1.8</td><td>引文是要被逐字读的，不能当脚注处理。</td></tr>
+        <tr><td>合同原文条款</td><td class="num">12.5px / 1.95</td><td class="num">15px / 1.9</td><td>主阅读区，行宽压到 34–38 字。</td></tr>
+        <tr><td>小号字标 <code>.label</code></td><td class="num">10px / .1em</td><td class="num">11px / .08em</td><td>字距收一点，字号提一点，小写字标才不糊。</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ================= 计划 ================= -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-no">05</span>
+      <h2>落地顺序</h2>
+      <span class="hint">按"演示风险"倒排，不是按工作量</span>
+    </div>
+    <div class="plan">
+      <div>
+        <div class="batch">BATCH 1</div>
+        <h4>先止血</h4>
+        <div class="est">约 2.5 小时 · 演示前一天必须做完</div>
+        <ul>
+          <li>P0-01 移动端按钮竖排</li>
+          <li>P0-02 PDF 横向溢出</li>
+          <li>P0-03 移动端结论前置</li>
+          <li>P0-04 ink.faint 提对比度</li>
+          <li>P0-05 字号基线</li>
+        </ul>
+      </div>
+      <div>
+        <div class="batch">BATCH 2</div>
+        <h4>立骨架</h4>
+        <div class="est">约 5 小时 · 桌面端观感提升最大</div>
+        <ul>
+          <li>P1-01 结论条独立成块</li>
+          <li>P1-02 审查过程折叠</li>
+          <li>P1-04 依据常驻折叠态</li>
+          <li>P1-05 结论卡改手风琴</li>
+          <li>P1-06 删除重复免责声明</li>
+          <li>P1-03 chip 排序</li>
+        </ul>
+      </div>
+      <div>
+        <div class="batch">BATCH 3</div>
+        <h4>收边</h4>
+        <div class="est">约 2 小时 · 有余力再做</div>
+        <ul>
+          <li>P1-07 / P1-08 法规库搜索与条号</li>
+          <li>P1-09 提问入口内联</li>
+          <li>P2-01 ~ 05</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:16px;font-size:13px;color:var(--ink-soft);line-height:1.85">
+      如果只有一天：做 Batch 1 + P1-01 + P1-02 + P1-06。这六项占观感提升的八成，且不碰业务逻辑。
+    </p>
+  </section>
+
+  <!-- ================= 不要做 ================= -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-no">06</span>
+      <h2>建议不要做</h2>
+      <span class="hint">改版的另一半是克制</span>
+    </div>
+    <div class="dont">
+      <div><i>✕</i><span><b>不要换字体族。</b>现在这套"衬线标题 + 苹方正文"是对的，换成 Inter 或思源黑体会立刻失去文书感；只调字号和字距。</span></div>
+      <div><i>✕</i><span><b>不要加渐变、发光、玻璃拟态。</b>产品卖点是"可信"，任何装饰性特效都在削弱它。</span></div>
+      <div><i>✕</i><span><b>不要为了"看起来 AI"加打字机动画。</b>流式输出本身已经是动效，再加一层就是噪音。</span></div>
+      <div><i>✕</i><span><b>不要引入组件库。</b>现在是手写 token + 少量 component 类，只有 6 个组件，引入 Element/Ant 只会把风格拉回模板。</span></div>
+      <div><i>✕</i><span><b>不要把"安全分"做成仪表盘/圆环。</b>细横条 + 大数字已经足够，圆环会把它变成游戏化评分，与"不构成法律意见"的克制立场冲突。</span></div>
+      <div><i>✕</i><span><b>不要给 6 处低风险都配彩色底。</b>风险色只做左侧色条或小标签，整片染色会让页面变成交通灯。</span></div>
+    </div>
+  </section>
+
+  <footer>
+    评审依据：<code>frontend/src</code> 全部组件与 <code>tailwind.config.js</code>；实机渲染覆盖 1440×940、390×844 两档宽度，以及答疑面板打开态。
+    对比度按 WCAG 2.1 相对亮度公式实测，非估算。<br>
+    本报告只提修改方向，未改动任何源码。
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { askAssistant } from '@/api/assistant'
+import { useAppStore } from '@/stores/reviewStore'
 import type { LawRef } from '@/types'
 
 interface ChatMessage {
@@ -13,10 +15,19 @@ interface ChatMessage {
   pending?: boolean
 }
 
-const props = defineProps<{ context?: string }>()
+const route = useRoute()
+const app = useAppStore()
 
-// ?ask=1 可直接唤起面板，方便从其他页面的“问一句”入口直达
-const open = ref(new URLSearchParams(window.location.search).has('ask'))
+// 开合状态放全局：审查台里的内联入口也要能唤起它
+const open = computed({
+  get: () => app.assistantOpen,
+  set: (value: boolean) => {
+    app.assistantOpen = value
+  },
+})
+
+// 审查页把入口内联进右栏了，右下角浮球会压住结论卡，那一页不显示
+const showFloatButton = computed(() => route.name !== 'review')
 const input = ref('')
 const sending = ref(false)
 const stage = ref('')
@@ -44,17 +55,17 @@ function scrollToBottom() {
 
 function toggle(next = !open.value) {
   open.value = next
-  if (next) {
-    scrollToBottom()
-    void nextTick(() => inputBox.value?.focus())
-  }
 }
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && open.value) toggle(false)
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
+onMounted(() => {
+  // ?ask=1 可直接唤起面板，方便从其他页面的「问一句」入口直达
+  if (new URLSearchParams(window.location.search).has('ask')) open.value = true
+  window.addEventListener('keydown', onKeydown)
+})
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   controller?.abort()
@@ -62,6 +73,10 @@ onBeforeUnmount(() => {
 
 watch(open, (value) => {
   document.body.classList.toggle('overflow-hidden', value && window.innerWidth < 640)
+  if (value) {
+    scrollToBottom()
+    void nextTick(() => inputBox.value?.focus())
+  }
 })
 
 async function send(text?: string) {
@@ -84,7 +99,7 @@ async function send(text?: string) {
 
   controller = new AbortController()
   try {
-    for await (const frame of askAssistant(question, props.context ?? '', controller.signal)) {
+    for await (const frame of askAssistant(question, app.assistantContext, controller.signal)) {
       if (frame.event === 'refs') {
         stage.value = '组织回答'
       } else {
@@ -119,8 +134,9 @@ function onEnter(event: KeyboardEvent) {
 </script>
 
 <template>
-  <!-- 入口：右下角印章式按钮，不抢页面视觉 -->
+  <!-- 入口：右下角印章式按钮，不抢页面视觉；审查页改用右栏内联入口 -->
   <button
+    v-if="showFloatButton"
     type="button"
     class="fixed bottom-6 right-5 z-40 flex h-11 w-11 items-center justify-center border border-accent-deep bg-accent font-serif text-[15px] leading-none text-white shadow-[0_6px_18px_rgba(18,41,77,0.22)] transition-all hover:-translate-y-0.5 hover:bg-accent-deep print:hidden"
     :aria-label="open ? '收起答疑助手' : '打开答疑助手'"

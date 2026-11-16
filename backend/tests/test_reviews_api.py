@@ -132,6 +132,25 @@ async def test_review_stream_and_persist(client, chinese_pdf_bytes):
     assert data["safety_score"] == done["safety_score"]
     assert len(data["findings"]) == len(done["findings"])
 
+    # SSE 出口必须换成数据库 clauses.id：工作流内部用 c{seq}，透传出去前端永远匹配不上
+    detail = await client.get(f"/api/v1/documents/{doc_id}", headers={"X-Session-Id": SESSION})
+    clause_ids = {c["id"] for c in detail.json()["data"]["clauses"]}
+
+    stream_linked = [f for f in done["findings"] if f.get("clause_id")]
+    assert stream_linked, "SSE 结论里必须带 clause_id"
+    unknown = {f["clause_id"] for f in stream_linked} - clause_ids
+    assert not unknown, f"SSE 里的 clause_id 不属于本条例：{unknown}"
+
+    # 逐条推的 finding 帧同样要换，否则流式期间高亮不亮
+    stream_findings = [d for e, d in events if e == "finding"]
+    assert stream_findings
+    bad = {
+        d["clause_id"]
+        for d in stream_findings
+        if d.get("clause_id") and d["clause_id"] not in clause_ids
+    }
+    assert not bad, f"finding 帧里的 clause_id 不属于本条例：{bad}"
+
     # 条款级结论必须映射到数据库 clauses.id（必备条款缺失类没有对应条款，跳过）
     linked = [f for f in data["findings"] if f["item_id"] != "L09"]
     assert linked and all(f["clause_id"] for f in linked)
@@ -177,3 +196,17 @@ async def test_list_reviews(client, sample_pdf_bytes):
     items = resp.json()["data"]
     assert len(items) >= 1
     assert items[0]["safety_score"] is not None
+
+
+def test_db_clause_id_maps_internal_key():
+    from app.services.review_service import _db_clause_id
+
+    mapping = {4: "uuid-4", 11: "uuid-11"}
+    assert _db_clause_id("c4", mapping) == "uuid-4"
+    assert _db_clause_id("c11", mapping) == "uuid-11"
+    # 已经是数据库 id 的原样放行
+    assert _db_clause_id("uuid-11", mapping) == "uuid-11"
+    # 映射不到、或不是字符串，一律给 None，由前端按"无定位"处理
+    assert _db_clause_id("c99", mapping) is None
+    assert _db_clause_id(None, mapping) is None
+    assert _db_clause_id("", mapping) is None

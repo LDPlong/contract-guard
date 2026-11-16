@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { fetchDocument, streamReview } from '@/api/review'
+import { fetchDocument, fetchReview, listDocumentReviews, streamReview } from '@/api/review'
 import type { DocumentDetail, Finding, RiskLevel, StreamStep } from '@/types'
 
 export type ReviewPhase = 'loading' | 'ready' | 'reviewing' | 'done' | 'error'
@@ -93,6 +93,41 @@ export const useReviewStore = defineStore('review', {
       }))
     },
 
+    /**
+     * 进入审查页：有已完成的记录就直接回看，没有才跑一次新的。
+     * 之前每次刷新都重跑，一次十秒加几万 token，回看历史完全没必要。
+     */
+    async resume(documentId: string) {
+      await this.load(documentId)
+      if (this.phase !== 'ready') return
+      try {
+        const history = await listDocumentReviews(documentId)
+        const last = history.find((h) => h.status === 'done' || h.status === 'partial')
+        if (!last) {
+          void this.start()
+          return
+        }
+        const detail = await fetchReview(last.review_id)
+        this.reviewId = detail.id
+        this.score = detail.safety_score
+        this.summary = detail.summary ?? ''
+        this.findings = (detail.findings ?? []).map((f, i) => ({
+          ...f,
+          id: f.id ?? (f as { item_id?: string }).item_id ?? `f-${i}`,
+        }))
+        this.steps = STEP_ORDER.map((key) => ({
+          key,
+          title: STEP_TITLES[key],
+          detail: key === 'aggregate' ? this.summary || '已完成' : '历史结果',
+          status: 'done' as const,
+        }))
+        this.phase = 'done'
+      } catch {
+        // 历史拉不到就退回重跑，不要让页面卡在空白
+        void this.start()
+      }
+    },
+
     async start() {
       if (this.phase === 'reviewing') return
       this.phase = 'reviewing'
@@ -121,7 +156,13 @@ export const useReviewStore = defineStore('review', {
               break
             }
             case 'finding': {
-              const finding = data as unknown as Finding
+              const raw = data as unknown as Finding & { item_id?: string }
+              // SSE 帧里只有 item_id、没有 id：补一个稳定 key，
+              // 否则 v-for 的 key 全是 undefined，展开态会互相串
+              const finding: Finding = {
+                ...raw,
+                id: raw.id ?? raw.item_id ?? `f-${this.findings.length}`,
+              }
               this.findings.push(finding)
               this.findings.sort(
                 (a, b) => RISK_ORDER[b.risk_level] - RISK_ORDER[a.risk_level],
@@ -148,7 +189,13 @@ export const useReviewStore = defineStore('review', {
               this.openQuestion = String(data.open_question ?? '')
               this.reviewId = (data.review_id as string) ?? this.reviewId
               const finalFindings = data.findings as Finding[] | undefined
-              if (Array.isArray(finalFindings)) this.findings = finalFindings
+              if (Array.isArray(finalFindings)) {
+                // 同上：回查结果同样可能缺 id，统一补齐，保证 key 与展开态稳定
+                this.findings = finalFindings.map((f, i) => ({
+                  ...f,
+                  id: f.id ?? (f as { item_id?: string }).item_id ?? `f-${i}`,
+                }))
+              }
               this.steps = this.steps.map((s) => ({
                 ...s,
                 detail: s.key === 'aggregate' ? this.summary || '已完成' : s.detail,

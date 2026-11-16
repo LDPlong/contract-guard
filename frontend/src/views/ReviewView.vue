@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { ArrowLeft, Printer, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ArrowLeft, MessageCircle, Printer, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import AgentTrace from '@/components/AgentTrace.vue'
 import ClauseViewer from '@/components/ClauseViewer.vue'
@@ -8,9 +8,11 @@ import FindingPanel from '@/components/FindingPanel.vue'
 import ReportSheet from '@/components/ReportSheet.vue'
 import SafetyScore from '@/components/SafetyScore.vue'
 import { useReviewStore } from '@/stores/review'
+import { useAppStore } from '@/stores/reviewStore'
 
 const props = defineProps<{ docId: string }>()
 const store = useReviewStore()
+const app = useAppStore()
 
 const TYPE_LABEL: Record<string, string> = {
   lease: '房屋租赁合同',
@@ -32,18 +34,82 @@ const stats = computed(() => {
   return counter
 })
 
-const riskyClauses = computed(() =>
-  store.findings
-    .filter((f) => f.clause_id)
-    .map((f) => ({
-      id: f.clause_id as string,
+const CN_DIGIT: Record<string, number> = {
+  零: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9,
+}
+
+/** "第三条" / "第十一条" / "第11条" → 3 / 11 / 11；解析不出来的一律排到最后 */
+function clauseOrdinal(label: string): number {
+  const m = label.match(/第\s*([0-9]+|[零一二三四五六七八九十百]+)\s*条/)
+  if (!m) return Number.MAX_SAFE_INTEGER
+  const raw = m[1]
+  if (/^[0-9]+$/.test(raw)) return Number(raw)
+
+  // 中文数字按 百 / 十 / 个 逐段累加，够用到"第一百二十条"
+  let total = 0
+  let section = 0
+  for (const ch of raw) {
+    if (ch === '百') {
+      total += (section || 1) * 100
+      section = 0
+    } else if (ch === '十') {
+      total += (section || 1) * 10
+      section = 0
+    } else {
+      section = CN_DIGIT[ch] ?? 0
+    }
+  }
+  return total + section
+}
+
+// 手机上 chips 最多先给 4 个，其余折叠
+const MOBILE_CHIP_LIMIT = 4
+const chipsExpanded = ref(false)
+
+const LEVEL_WEIGHT: Record<string, number> = { high: 3, medium: 2, low: 1, none: 0 }
+
+/**
+ * 一条条款可能命中多个审查项（第八条同时中了违约金和解除权），
+ * chips 按条款去重、留最严重那条，否则同一句话会出现两次，点了还跳同一处。
+ */
+const riskyClauses = computed(() => {
+  const byClause = new Map<string, {
+    id: string
+    no: string
+    level: string
+    title: string
+    confidence: number
+    basis: string
+    count: number
+  }>()
+
+  for (const f of store.findings) {
+    if (!f.clause_id) continue
+    const prev = byClause.get(f.clause_id)
+    if (prev) {
+      prev.count += 1
+      if ((LEVEL_WEIGHT[f.risk_level] ?? 0) > (LEVEL_WEIGHT[prev.level] ?? 0)) {
+        prev.level = f.risk_level
+        prev.title = f.title
+        prev.confidence = f.confidence
+        prev.basis = f.legal_basis[0]?.article ?? ''
+      }
+      continue
+    }
+    byClause.set(f.clause_id, {
+      id: f.clause_id,
       no: f.clause_no ?? '未编号',
       level: f.risk_level,
       title: f.title,
       confidence: f.confidence,
       basis: f.legal_basis[0]?.article ?? '',
-    })),
-)
+      count: 1,
+    })
+  }
+
+  // 按条款序排，不按模型返回顺序：用户是照合同找条号的
+  return [...byClause.values()].sort((a, b) => clauseOrdinal(a.no) - clauseOrdinal(b.no))
+})
 
 const LEVEL_TEXT: Record<string, string> = {
   high: '高风险',
@@ -60,9 +126,24 @@ const LEVEL_DOT: Record<string, string> = {
 }
 const typeLabel = computed(() => TYPE_LABEL[store.document?.contract_type ?? 'unknown'])
 
-onMounted(async () => {
-  await store.load(props.docId)
-  if (store.phase === 'ready') void store.start()
+/**
+ * 内联入口带上的上下文：助手是"就这份合同"回答，不是凭空答。
+ * 只放类型、条数和前几条结论，后端还有 400 字上限，别写成整份合同。
+ */
+const reviewContext = computed(() => {
+  const total = store.document?.clauses.length ?? 0
+  const top = store.findings.slice(0, 5).map((f) => {
+    const level = LEVEL_TEXT[f.risk_level] ?? ''
+    return `- ${f.clause_no || '未定位条款'}：${f.title}（${level}）`
+  })
+  return [
+    `当前审查的合同：${typeLabel.value}，共 ${total} 条条款。`,
+    top.length ? `已标出的风险：\n${top.join('\n')}` : '目前未标出明显风险。',
+  ].join('\n')
+})
+
+onMounted(() => {
+  void store.resume(props.docId)
 })
 
 onBeforeUnmount(() => {
@@ -102,24 +183,26 @@ function exportReport() {
         </div>
       </div>
 
-      <div class="flex items-center gap-4">
+      <div class="flex flex-wrap items-center justify-end gap-3">
         <SafetyScore :score="store.score" :streaming="store.isStreaming" />
         <button
           v-if="canExport"
-          class="btn-ghost text-xs"
+          class="btn-ghost shrink-0 whitespace-nowrap !px-2.5 text-xs sm:!px-5"
           title="用浏览器另存为 PDF，内容与本页一致"
+          aria-label="导出报告"
           @click="exportReport"
         >
           <Printer :size="13" />
-          导出报告
+          <span class="hidden sm:inline">导出报告</span>
         </button>
         <button
-          class="btn-ghost text-xs"
+          class="btn-ghost shrink-0 whitespace-nowrap !px-2.5 text-xs sm:!px-5"
           :disabled="store.isStreaming || store.phase === 'loading'"
+          aria-label="重新审查"
           @click="store.start()"
         >
           <RefreshCw :size="13" :class="store.isStreaming ? 'animate-spin' : ''" />
-          重新审查
+          <span class="hidden sm:inline">重新审查</span>
         </button>
       </div>
     </div>
@@ -151,9 +234,14 @@ function exportReport() {
 
       <div class="flex flex-1 flex-wrap items-center gap-1.5">
         <span class="label mr-1">命中条款</span>
-        <div v-for="c in riskyClauses" :key="c.id" class="group/chip relative">
+        <div
+          v-for="(c, i) in riskyClauses"
+          :key="c.id"
+          class="group/chip relative"
+          :class="i >= MOBILE_CHIP_LIMIT && !chipsExpanded ? 'hidden sm:block' : ''"
+        >
           <button
-            class="flex items-center gap-1.5 border px-2 py-0.5 text-[11px] transition-colors"
+            class="flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1.5 text-[11px] transition-colors sm:min-h-0 sm:px-2 sm:py-0.5"
             :class="
               store.activeClauseId === c.id
                 ? 'border-ink bg-ink text-white'
@@ -167,7 +255,10 @@ function exportReport() {
 
           <!-- 悬停预览：不必点进去就能看到结论 -->
           <div
-            class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-[220px] -translate-x-1/2 border border-line bg-white p-2.5 opacity-0 shadow-lift transition-all duration-150 ease-calm group-hover/chip:-translate-y-0.5 group-hover/chip:opacity-100"
+            class="pointer-events-none absolute bottom-full z-10 mb-2 hidden w-[220px] border border-line bg-white p-2.5 opacity-0 shadow-lift transition-all duration-150 ease-calm group-hover/chip:-translate-y-0.5 group-hover/chip:opacity-100 sm:block"
+            :class="
+              i === riskyClauses.length - 1 ? 'left-auto right-0' : 'left-1/2 -translate-x-1/2'
+            "
           >
             <p class="flex items-center gap-1.5 text-[10px]">
               <span class="h-1 w-1 rounded-full" :class="LEVEL_DOT[c.level]" />
@@ -180,11 +271,20 @@ function exportReport() {
             </p>
           </div>
         </div>
+
+        <!-- 手机上默认只给 4 个，其余折起来，别让 chips 把结论顶到三屏之外 -->
+        <button
+          v-if="riskyClauses.length > MOBILE_CHIP_LIMIT"
+          class="text-[11px] text-accent transition-colors hover:text-ink sm:hidden"
+          @click="chipsExpanded = !chipsExpanded"
+        >
+          {{ chipsExpanded ? '收起' : `还有 ${riskyClauses.length - MOBILE_CHIP_LIMIT} 条` }}
+        </button>
       </div>
     </div>
 
     <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]">
-      <div class="h-[calc(100vh-190px)] min-h-[420px]">
+      <div class="order-2 h-[calc(100vh-214px)] min-h-[420px] lg:order-1">
         <ClauseViewer
           :document-id="store.documentId"
           :document="store.document"
@@ -194,7 +294,7 @@ function exportReport() {
         />
       </div>
 
-      <div class="flex h-[calc(100vh-190px)] min-h-[420px] flex-col gap-2.5 overflow-hidden">
+      <div class="order-1 flex h-[calc(100vh-214px)] min-h-[420px] flex-col gap-2.5 overflow-hidden lg:order-2">
         <AgentTrace
           :steps="store.steps"
           :progress="store.progress"
@@ -217,6 +317,15 @@ function exportReport() {
             @select="store.select"
           />
         </div>
+
+        <!-- 提问入口内联在右栏底部：既不遮结论，又带上「当前合同」这个上下文 -->
+        <button
+          class="flex w-full shrink-0 items-center justify-center gap-1.5 border border-line bg-white py-2.5 text-[12px] text-accent transition-colors hover:border-line-strong"
+          @click="app.openAssistant(reviewContext)"
+        >
+          <MessageCircle :size="12" />
+          就这份合同提问
+        </button>
       </div>
     </div>
   </div>

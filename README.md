@@ -130,6 +130,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 ```
 contract-guard/
 ├── docs/                     # 技术文档、部署说明、演示脚本、评测结果、团队分工
+│   ├── ui-fix-log.md         # 前端可用性修复记录（含"结论↔原文断联"复盘）
+│   └── ui-review.html        # 界面评审与优化方案
 ├── Dockerfile                # 单镜像：前端构建 + 后端运行（未在本机验证）
 ├── backend/
 │   ├── app/

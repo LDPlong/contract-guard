@@ -78,7 +78,8 @@ async function paintPages() {
   if (!pdfDoc || !canvasHost.value) return
   const canvases = canvasHost.value.querySelectorAll<HTMLCanvasElement>('canvas[data-page]')
   const available = Math.min(VIEW_MAX_WIDTH, scroller.value?.clientWidth ?? VIEW_MAX_WIDTH) - 32
-  const baseScale = Math.max(available, 460) / (metas.value[0]?.widthPt || 595)
+  // 下限只防“缩到看不清”。原来写死 460，在 390 宽屏上比容器还宽，页面直接横向溢出
+  const baseScale = Math.max(available, 260) / (metas.value[0]?.widthPt || 595)
 
   for (const canvas of canvases) {
     const pageNo = Number(canvas.dataset.page)
@@ -123,7 +124,8 @@ async function upgradeToPdf() {
     }
     metas.value = pages
 
-    mode.value = 'pdf'
+    // 小屏留在条款视图：原版 PDF 在 390 宽下缩放后字太小，没有阅读价值
+    if (window.innerWidth >= 640) mode.value = 'pdf'
     await nextTick()
 
     const firstPage = paintPages()
@@ -133,12 +135,53 @@ async function upgradeToPdf() {
     await Promise.race([firstPage, timeout])
 
     pdfState.value = 'ready'
+
+    // 首屏直接落在第一条命中条款上：PDF 第一页永远是封面，停在封面等于什么都没给
+    await scrollToFirstHit()
   } catch {
     // 升级失败不影响使用，静默回落到条款视图
     mode.value = 'text'
     pdfState.value = 'failed'
   }
 }
+
+/** 原版视图首屏落到第一条命中条款，别停在封面上 */
+let autoScrolled = false
+async function scrollToFirstHit() {
+  if (autoScrolled) return
+  if (mode.value !== 'pdf' || pdfState.value !== 'ready') return
+  const ids = Object.keys(props.highlights)
+  if (!ids.length) return
+  await nextTick()
+
+  // 有 bbox 就精确滚到条款框；没有就退到它所在的那一页
+  for (const id of ids) {
+    const clause = clauses.value.find((c) => c.id === id)
+    const box = scroller.value?.querySelector<HTMLElement>(`[data-clause-id="${id}"]`)
+    const canvas = clause
+      ? scroller.value?.querySelector<HTMLElement>(`canvas[data-page="${clause.page_no}"]`)
+      : null
+    const target = box ?? canvas?.parentElement
+    if (!target) continue
+    target.scrollIntoView({ block: 'center', inline: 'nearest' })
+    autoScrolled = true
+    return
+  }
+}
+
+// PDF 通常比结论先就绪，所以命中进来后再补一次跳转
+watch(
+  () => Object.keys(props.highlights).length,
+  (n) => {
+    if (n > 0 && mode.value === 'pdf' && pdfState.value === 'ready') void scrollToFirstHit()
+  },
+)
+watch(
+  () => props.documentId,
+  () => {
+    autoScrolled = false
+  },
+)
 
 function zoomBy(delta: number) {
   const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number((zoom.value + delta).toFixed(2))))
@@ -213,14 +256,14 @@ watch(
             · {{ document.clauses.length }} 条 · {{ document.pages.length }} 页
           </span>
         </p>
-        <div v-if="pdfState === 'ready'" class="flex border border-line">
+        <div v-if="pdfState === 'ready'" class="flex overflow-hidden rounded-sm border border-line">
           <button
-            class="px-2 py-0.5 text-[10px] transition-colors"
+            class="min-h-[28px] px-2.5 py-1 text-[11px] transition-colors"
             :class="mode === 'text' ? 'bg-ink text-white' : 'text-ink-faint hover:text-ink'"
             @click="mode = 'text'"
           >条款</button>
           <button
-            class="px-2 py-0.5 text-[10px] transition-colors"
+            class="min-h-[28px] px-2.5 py-1 text-[11px] transition-colors"
             :class="mode === 'pdf' ? 'bg-ink text-white' : 'text-ink-faint hover:text-ink'"
             @click="mode = 'pdf'"
           >原版</button>
@@ -279,10 +322,10 @@ watch(
           }"
           @click="pick(clause)"
         >
-          <p v-if="clause.clause_no" class="mb-1 font-serif text-[11px] tracking-wide text-ink-faint">
+          <p v-if="clause.clause_no" class="mb-1 font-serif text-[11.5px] tracking-wide text-ink-faint">
             {{ clause.clause_no }}
           </p>
-          <p class="whitespace-pre-wrap text-[12.5px] leading-[1.95] text-ink-soft">
+          <p class="whitespace-pre-wrap text-[15px] leading-[1.9] text-ink-soft">
             {{ reflow(clause.text) }}
           </p>
         </div>
