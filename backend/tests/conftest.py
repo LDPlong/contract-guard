@@ -30,6 +30,15 @@ def _prepare_database():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """限流计数是进程级的，测试之间必须清空，否则后面的用例会被前面的请求拖累。"""
+    from app.core.ratelimit import limiter
+
+    limiter.reset()
+    yield
+
+
 def build_pdf_bytes(lines: list[str]) -> bytes:
     """生成一份最小可解析 PDF，用于上传接口测试。"""
     doc = pymupdf.open()

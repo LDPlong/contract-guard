@@ -37,7 +37,7 @@
 | M4  | Agent 工作流 + SSE         | ✅ 完成  |
 | M5  | 高亮联动                    | ✅ 完成  |
 | M6  | 安全分 + 报告导出              | ✅ 完成  |
-| M7  | 脱敏 / 限流 / 兜底            | ✅ 完成  |
+| M7  | 脱敏 / 限流 / 兜底            | ✅ 完成（限流为进程内滑动窗口） |
 | M8  | 交付材料                    | 🟡 技术文档、评测集完成，演示视频待录 |
 
 规格文档：[`docs/项目开发文档.md`](docs/项目开发文档.md)（v1.2，实现以此为准）
@@ -142,7 +142,7 @@ contract-guard/
 │   │   ├── schemas/          # Pydantic（与 ORM 严格分离）
 │   │   └── services/         # 业务逻辑：parsing / rag / agent / llm / assistant
 │   ├── scripts/              # 建索引、抓语料、冒烟、评测集跑分
-│   └── tests/                # 106 项（含 9 份评测样本）
+│   └── tests/                # 118 项（含 9 份评测样本）
 └── frontend/
     └── src/
         ├── api/              # http.ts（普通接口）+ review.ts（SSE）

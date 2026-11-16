@@ -21,6 +21,7 @@ from app.core.config import get_settings
 from app.core.constants import ErrorCode
 from app.core.errors import BizError, ok
 from app.core.logging import get_logger, request_id_ctx, setup_logging
+from app.core.ratelimit import client_ip, is_exempt, is_heavy, limiter
 from app.models.base import engine, init_models
 from app.services.document_service import repair_stale_parsing
 
@@ -73,6 +74,39 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-Id", "X-Session-Id"],
 )
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    """按 IP + 档位做 60 秒滑动窗口限流。
+
+    request_context 注册在本中间件之后，因此在外层先执行：429 也能带上
+    request_id 进日志；探活与静态资源不计数。
+    """
+    if not settings.rate_limit_enabled or is_exempt(request.url.path):
+        return await call_next(request)
+
+    heavy = is_heavy(request)
+    bucket = "heavy" if heavy else "default"
+    limit = settings.rate_limit_heavy_per_minute if heavy else settings.rate_limit_per_minute
+    ip = client_ip(request)
+
+    allowed, remaining, retry_after = limiter.hit(f"{ip}:{bucket}", limit)
+    if not allowed:
+        log.warning("rate limited ip=%s path=%s bucket=%s", ip, request.url.path, bucket)
+        return JSONResponse(
+            status_code=429,
+            content={
+                "code": int(ErrorCode.RATE_LIMITED),
+                "message": f"请求过于频繁，请 {retry_after} 秒后重试",
+                "data": {"retry_after": retry_after},
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    response = await call_next(request)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    return response
 
 
 @app.middleware("http")

@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     rerank_enabled: bool = False
     rerank_model: str = ""
 
+    # ---- 限流 ----
+    # heavy 档：上传、发起审查、答疑——都是模型调用或磁盘写入的入口
+    rate_limit_enabled: bool = True
+    rate_limit_per_minute: int = 120
+    rate_limit_heavy_per_minute: int = 12
+
     # ---- 检索 ----
     retrieve_top_k: int = 20
     rerank_top_n: int = 5

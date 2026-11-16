@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AssistantDock from '@/components/AssistantDock.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import { onGlobalError } from '@/lib/errorBus'
 import { useAppStore } from '@/stores/reviewStore'
 
 const app = useAppStore()
@@ -24,6 +26,20 @@ const healthTone = computed(() => {
   if (app.healthState === 'checking') return 'bg-ink-faint'
   return 'bg-risk-high'
 })
+
+// 兜底提示：错误边界之外的异常只在控制台留痕，用户需要看到一句话
+const globalError = ref('')
+let errorTimer: number | undefined
+
+onGlobalError((message) => {
+  globalError.value = message
+  window.clearTimeout(errorTimer)
+  errorTimer = window.setTimeout(() => {
+    globalError.value = ''
+  }, 8000)
+})
+
+onBeforeUnmount(() => window.clearTimeout(errorTimer))
 
 onMounted(() => {
   void app.checkHealth()
@@ -79,8 +95,23 @@ onMounted(() => {
       </div>
     </header>
 
+    <div
+      v-if="globalError"
+      class="app-chrome fixed left-1/2 top-16 z-50 flex w-[calc(100%-2rem)] max-w-[560px] -translate-x-1/2 items-start gap-3 border border-risk-high/30 bg-white px-3 py-2.5 shadow-lift print:hidden"
+      role="alert"
+    >
+      <p class="flex-1 text-[12px] leading-relaxed text-ink-soft">{{ globalError }}</p>
+      <button
+        type="button"
+        class="shrink-0 text-[11px] text-ink-faint transition-colors hover:text-ink"
+        @click="globalError = ''"
+      >关闭</button>
+    </div>
+
     <main class="flex-1">
-      <RouterView />
+      <ErrorBoundary>
+        <RouterView />
+      </ErrorBoundary>
     </main>
 
     <AssistantDock />
