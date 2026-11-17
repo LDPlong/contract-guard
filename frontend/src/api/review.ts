@@ -1,4 +1,5 @@
-import http, { ApiError, getSessionId, request } from '@/api/http'
+import http, { getSessionId, request } from '@/api/http'
+import { sseStream } from '@/lib/sse'
 import type { DocumentDetail, HealthStatus, ReviewDetail, StreamEvent, UploadResult } from '@/types'
 
 /** 8.10 健康检查：返回裸 JSON，没有 {code,message,data} 信封，不能走 request() */
@@ -59,70 +60,22 @@ export async function fetchDocumentFile(documentId: string): Promise<ArrayBuffer
 
 export const SSE_ENDPOINT = (documentId: string) => `/api/v1/documents/${documentId}/review`
 
-function parseFrame(block: string): StreamEvent | null {
-  let event = ''
-  const dataLines: string[] = []
-  for (const line of block.split('\n')) {
-    if (line.startsWith('event:')) event = line.slice(6).trim()
-    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
-  }
-  if (!event || dataLines.length === 0) return null
-  try {
-    return { event: event as StreamEvent['event'], data: JSON.parse(dataLines.join('')) }
-  } catch {
-    return null
-  }
-}
-
 /**
- * 8.3 审查流。
- * 契约是 POST，原生 EventSource 只支持 GET，所以必须 fetch + ReadableStream
- * 手动解析 SSE 帧（文档 3.1 明令禁止 EventSource）。
+ * 8.3 审查流。帧解析共用 lib/sse.ts（文档 3.1 明令禁止 EventSource）。
  */
 export async function* streamReview(
   documentId: string,
   signal?: AbortSignal,
 ): AsyncGenerator<StreamEvent> {
-  const resp = await fetch(SSE_ENDPOINT(documentId), {
-    method: 'POST',
-    headers: {
-      'X-Session-Id': getSessionId(),
-      Accept: 'text/event-stream',
+  yield* sseStream<StreamEvent>(
+    SSE_ENDPOINT(documentId),
+    {
+      method: 'POST',
+      headers: {
+        'X-Session-Id': getSessionId(),
+      },
+      signal,
     },
-    signal,
-  })
-
-  if (!resp.ok || !resp.body) {
-    let message = `审查请求失败（${resp.status}）`
-    try {
-      const body = await resp.json()
-      if (body?.message) message = body.message
-    } catch {
-      /* 保持默认文案 */
-    }
-    throw new ApiError(resp.status, message)
-  }
-
-  const reader = resp.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-
-      let boundary = buffer.indexOf('\n\n')
-      while (boundary >= 0) {
-        const block = buffer.slice(0, boundary)
-        buffer = buffer.slice(boundary + 2)
-        const frame = parseFrame(block)
-        if (frame) yield frame
-        boundary = buffer.indexOf('\n\n')
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
+    '审查请求失败',
+  )
 }

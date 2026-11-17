@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { askAssistant } from '@/api/assistant'
-import { useAppStore } from '@/stores/reviewStore'
+import { useAppStore } from '@/stores/app'
 import type { LawRef } from '@/types'
 
 interface ChatMessage {
@@ -158,6 +158,7 @@ function onEnter(event: KeyboardEvent) {
     role="dialog"
     aria-label="合同法律答疑助手"
     :aria-hidden="!open"
+    :inert="!open"
   >
     <header class="flex items-start justify-between border-b border-line px-5 py-4">
       <div>

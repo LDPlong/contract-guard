@@ -28,6 +28,8 @@ const searchedFor = ref('')
 const activeMeta = computed(() => sources.value.find((s) => s.source === activeSource.value))
 const hasMore = computed(() => articles.value.length < total.value)
 
+const errorMsg = ref('')
+
 async function loadSources() {
   const data = await fetchSources()
   sources.value = data.items
@@ -39,6 +41,7 @@ async function loadSources() {
 async function loadArticles(reset = true) {
   if (loading.value) return
   loading.value = true
+  errorMsg.value = ''
   try {
     if (reset) {
       offset.value = 0
@@ -53,6 +56,8 @@ async function loadArticles(reset = true) {
     total.value = page.total
     articles.value = [...articles.value, ...page.items]
     offset.value = articles.value.length
+  } catch (err) {
+    errorMsg.value = err instanceof Error ? err.message : '法规库加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -72,6 +77,7 @@ async function runSearch() {
     hits.value = []
     return
   }
+  errorMsg.value = ''
   searching.value = true
   try {
     const data = await searchKnowledge(q, 8)
@@ -79,7 +85,8 @@ async function runSearch() {
     searchedFor.value = q
   } catch (err) {
     hits.value = []
-    searchedFor.value = err instanceof Error ? err.message : q
+    errorMsg.value = err instanceof Error ? err.message : '检索失败，请稍后重试'
+    searchedFor.value = ''
   } finally {
     searching.value = false
   }
@@ -91,8 +98,12 @@ function clearSearch() {
 }
 
 onMounted(async () => {
-  await loadSources()
-  await loadArticles(true)
+  try {
+    await loadSources()
+    await loadArticles(true)
+  } catch (err) {
+    errorMsg.value = err instanceof Error ? err.message : '法规库加载失败，请稍后重试'
+  }
 })
 </script>
 
@@ -124,6 +135,20 @@ onMounted(async () => {
       </div>
     </header>
 
+    <!-- 加载 / 检索失败：给一句人话，而不是让异常冒到全局提示条 -->
+    <div
+      v-if="errorMsg"
+      class="mt-5 border border-risk-high/30 bg-risk-high/[0.04] px-3 py-2.5"
+    >
+      <p class="text-[12px] text-ink">{{ errorMsg }}</p>
+      <button
+        class="mt-1.5 text-[11px] text-accent transition-colors hover:text-ink"
+        @click="loadSources().then(() => loadArticles(true))"
+      >
+        重新加载
+      </button>
+    </div>
+
     <!-- 检索结果 -->
     <section v-if="hits.length" class="mt-5">
       <div class="flex items-center justify-between border-b border-line pb-2">
@@ -149,7 +174,7 @@ onMounted(async () => {
     </section>
 
     <!-- 浏览 -->
-    <div v-else class="mt-5 grid gap-8 lg:grid-cols-[200px_1fr]">
+    <div v-else-if="!errorMsg" class="mt-5 grid gap-8 lg:grid-cols-[200px_1fr]">
       <aside class="lg:border-r lg:border-line lg:pr-6">
         <p class="label">法规</p>
         <ul class="mt-2 space-y-1">

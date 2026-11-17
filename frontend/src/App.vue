@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import AssistantDock from '@/components/AssistantDock.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { onGlobalError } from '@/lib/errorBus'
-import { useAppStore } from '@/stores/reviewStore'
+import { useAppStore } from '@/stores/app'
 
 const app = useAppStore()
 
@@ -118,9 +118,15 @@ onMounted(() => {
 
     <footer class="app-chrome mt-auto border-t border-line">
       <div
-        class="mx-auto flex w-full max-w-[1240px] items-center justify-center px-4 py-5 text-[11px] leading-relaxed text-ink-faint sm:px-6"
+        class="mx-auto flex w-full max-w-[1240px] flex-col items-center gap-2 px-4 py-5 text-[11px] leading-relaxed text-ink-faint sm:px-6"
       >
         <p>本工具仅提供风险提示与修改方向，不构成法律意见，不替代执业律师。</p>
+        <nav class="flex items-center gap-4">
+          <RouterLink to="/guide" class="transition-colors hover:text-ink">使用说明</RouterLink>
+          <RouterLink to="/terms" class="transition-colors hover:text-ink">使用条款</RouterLink>
+          <RouterLink to="/privacy" class="transition-colors hover:text-ink">隐私说明</RouterLink>
+          <RouterLink to="/feedback" class="transition-colors hover:text-ink">问题反馈</RouterLink>
+        </nav>
       </div>
     </footer>
   </div>

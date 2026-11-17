@@ -47,7 +47,8 @@ export interface PageInfo {
 
 /**
  * bbox 约定（文档 9.2）：PDF point、左上原点、y 向下、绝对坐标 [x0,y0,x1,y1]。
- * 前端换算一律用 viewport.convertToViewportRectangle()，不要自己乘 scale。
+ * 后端给的已经是"左上原点"坐标，前端按 cssScale 直接缩放即可，无需再做 y 翻转
+ * （ClauseViewer.rectOf 的实现与本约定一致）。
  */
 export interface Clause {
   id: string

@@ -8,7 +8,7 @@ import FindingPanel from '@/components/FindingPanel.vue'
 import ReportSheet from '@/components/ReportSheet.vue'
 import SafetyScore from '@/components/SafetyScore.vue'
 import { useReviewStore } from '@/stores/review'
-import { useAppStore } from '@/stores/reviewStore'
+import { useAppStore } from '@/stores/app'
 
 const props = defineProps<{ docId: string }>()
 const store = useReviewStore()

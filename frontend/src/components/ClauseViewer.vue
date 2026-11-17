@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { FileText, Minus, Plus } from 'lucide-vue-next'
 import { fetchDocumentFile } from '@/api/review'
 import type { Clause, DocumentDetail, RiskLevel } from '@/types'
@@ -176,11 +176,30 @@ watch(
     if (n > 0 && mode.value === 'pdf' && pdfState.value === 'ready') void scrollToFirstHit()
   },
 )
+/** 释放 pdf.js 文档与 worker：不销毁的话，换文档 / 卸载组件后内存会一直挂着 */
+function teardownPdf() {
+  if (pdfDoc) {
+    pdfDoc.destroy()
+    pdfDoc = null
+  }
+  metas.value = []
+  pdfState.value = 'idle'
+  mode.value = 'text'
+  autoScrolled = false
+}
+
+onBeforeUnmount(teardownPdf)
+
 watch(
   () => props.documentId,
-  () => {
-    autoScrolled = false
+  (id) => {
+    if (!id) return
+    // 路由参数变化会复用组件实例，必须先清掉上一份 PDF，否则 upgradeToPdf 的
+    // idle 守卫会拦住重载，页面停留在旧文档上
+    teardownPdf()
+    void upgradeToPdf()
   },
+  { immediate: true },
 )
 
 function zoomBy(delta: number) {
@@ -233,15 +252,6 @@ watch(
     const el = scroller.value?.querySelector<HTMLElement>(`[data-clause-id="${id}"]`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   },
-)
-
-watch(
-  () => props.documentId,
-  (id) => {
-    if (!id) return
-    void upgradeToPdf()
-  },
-  { immediate: true },
 )
 </script>
 

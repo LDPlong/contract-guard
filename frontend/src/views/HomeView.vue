@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { AlertCircle, ArrowRight, Check, FileText, Loader2 } from 'lucide-vue-next'
 import { uploadDocument } from '@/api/review'
+import SectionCollapse from '@/components/SectionCollapse.vue'
 
 const router = useRouter()
 
@@ -26,6 +27,65 @@ const facts = [
   ['合同类型', '房屋租赁 / 劳动 / 培训贷'],
   ['文件处理', '仅存本次会话，可随时删除'],
   ['结论依据', '法条编号 + 原文引用'],
+]
+
+/** 三步流程：参考工具类落地页的惯例，把"会发生什么"先讲清楚 */
+const steps = [
+  {
+    title: '上传合同',
+    desc: '拖入 PDF 或合同照片，自动识别租赁 / 劳动 / 培训贷类型，条款自动切分定位。',
+  },
+  {
+    title: '逐条核对',
+    desc: '按对应类型的审查清单，逐条比对本地法规库，标出风险等级与低置信度项。',
+  },
+  {
+    title: '拿到建议',
+    desc: '每条给修改方向与谈判次序，汇总成报告，可一键打印导出 PDF。',
+  },
+]
+
+/** 特性网格：只写产品真的做到的事，不写口号 */
+const features = [
+  {
+    title: '依据到条号',
+    desc: '每条结论附法条编号与原文引用，可直接跳到法规库核对原文，不凭感觉说话。',
+  },
+  {
+    title: '分级不糊弄',
+    desc: '高 / 中 / 低风险之外，置信度不足的结论会明确标出「待复核」，而不是硬给一个答案。',
+  },
+  {
+    title: '谈判有次序',
+    desc: '结论标注「必守 / 可谈 / 可让步」，先谈什么、后让什么，进场前心里有数。',
+  },
+  {
+    title: '会话内隔离',
+    desc: '文件仅存于本次匿名会话，可随时删除；不注册、不收集姓名手机号等身份信息。',
+  },
+]
+
+const faqs = [
+  {
+    q: '它能代替律师吗？',
+    a: '不能。它只做风险提示与沟通方向参考，结论由算法和模型生成，可能出错。金额较大、情况复杂的合同，请咨询执业律师。',
+  },
+  {
+    q: '我的合同会被保存或泄露吗？',
+    a: '上传的文件只与你的匿名会话绑定，可随时删除；不注册、不收集身份信息。审查过程会把条款文本发送给大模型服务完成判定，如含身份证号、银行卡号等敏感信息，建议上传前遮盖。',
+  },
+  {
+    q: '支持哪些合同类型？',
+    a: '目前覆盖房屋租赁、实习 / 劳动、培训贷 / 预付卡三类。其他类型也能审查，但按通用条款处理，结论仅供参考。',
+  },
+  {
+    q: '结论的依据是什么？',
+    a: '本地法规库收录民法典、劳动合同法、民事诉讼法、消费者权益保护法、社会保险法五部法律全文；每条结论都标注具体条号与原文，可在「法规库」页面直接核对。',
+  },
+  {
+    q: '一次审查要多久？',
+    a: '通常十几秒到一分钟，取决于合同页数与条款数量。审查过程有实时进度，可以看到核到了哪一条。',
+  },
 ]
 
 const GRID = {
@@ -69,9 +129,26 @@ function onFileChange(e: Event) {
 }
 
 function onDrop(e: DragEvent) {
+  dragDepth = 0
   dragging.value = false
   const file = e.dataTransfer?.files?.[0]
   if (file) acceptFile(file)
+}
+
+/**
+ * dragleave 会在穿过子元素时反复触发，直接开关 dragging 会闪烁；
+ * 用 dragenter/leave 的深度计数，进出子元素相抵消，只有真正离开才熄灭。
+ */
+let dragDepth = 0
+
+function onDragEnter() {
+  dragDepth += 1
+  dragging.value = true
+}
+
+function onDragLeave() {
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragging.value = false
 }
 
 async function submit() {
@@ -116,8 +193,9 @@ async function submit() {
         @click="openPicker"
         @keydown.enter="openPicker"
         @keydown.space.prevent="openPicker"
-        @dragover.prevent="dragging = true"
-        @dragleave.prevent="dragging = false"
+        @dragover.prevent
+        @dragenter.prevent="onDragEnter"
+        @dragleave.prevent="onDragLeave"
         @drop.prevent="onDrop"
       >
         <span
@@ -190,6 +268,42 @@ async function submit() {
         <dd class="mt-1 text-[11.5px] text-ink-soft">{{ v }}</dd>
       </div>
     </dl>
+
+    <!-- 三步流程：先讲清楚"会发生什么"，降低上传的心理门槛 -->
+    <section class="mt-14">
+      <p class="label">如何使用</p>
+      <h2 class="mt-2 font-serif text-[20px] text-ink">三步拿到审查结论</h2>
+      <ol class="mt-5 grid gap-px border border-line bg-line sm:grid-cols-3">
+        <li v-for="(s, i) in steps" :key="s.title" class="bg-white px-4 py-4">
+          <p class="num font-serif text-[13px] text-accent">0{{ i + 1 }}</p>
+          <h3 class="mt-2 font-serif text-[14px] text-ink">{{ s.title }}</h3>
+          <p class="mt-1.5 text-[11.5px] leading-[1.8] text-ink-soft">{{ s.desc }}</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- 特性：只写做得到的事，建立信任 -->
+    <section class="mt-14">
+      <p class="label">为什么可信</p>
+      <h2 class="mt-2 font-serif text-[20px] text-ink">结论给依据，不糊弄</h2>
+      <div class="mt-5 grid gap-3 sm:grid-cols-2">
+        <div v-for="f in features" :key="f.title" class="border border-line bg-white px-4 py-4">
+          <h3 class="font-serif text-[14px] text-ink">{{ f.title }}</h3>
+          <p class="mt-1.5 text-[11.5px] leading-[1.8] text-ink-soft">{{ f.desc }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 常见问题：复用折叠组件 -->
+    <section class="mt-14">
+      <p class="label">常见问题</p>
+      <h2 class="mt-2 font-serif text-[20px] text-ink">问得最多的几件事</h2>
+      <div class="mt-2 border-t border-line">
+        <SectionCollapse v-for="item in faqs" :key="item.q" :title="item.q">
+          <p class="text-[12px] leading-[1.9] text-ink-soft">{{ item.a }}</p>
+        </SectionCollapse>
+      </div>
+    </section>
 
   </div>
 </template>

@@ -114,7 +114,8 @@
     display: none !important;
   }
 
-  .report-item {
+  /* ReportSheet 的结论条目：跨页时不从中间切断 */
+  .report .item {
     break-inside: avoid;
     page-break-inside: avoid;
   }
