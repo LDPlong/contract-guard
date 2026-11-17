@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ContractGuard · 作品介绍</title>
+<style>
+  :root{
+    --paper:#F6F4EE; --panel:#FFFDF9; --ink:#15171C; --ink-soft:#454B54;
+    --ink-mute:#6B7078; --line:#E3DFD5; --line-soft:#EEEAE0;
+    --navy:#1B3A6B; --navy-deep:#12294D; --navy-wash:#EDF1F7;
+    --high:#B3261E; --mid:#8F5A00; --low:#2E7D4F;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:"Songti SC","Noto Serif SC","SimSun",serif;
+    color:var(--ink); background:#fff; font-size:12.5px; line-height:1.9;
+  }
+  .page{width:190mm; margin:0 auto; padding:14mm 0 10mm}
+
+  /* ---------- 封面区块 ---------- */
+  .cover{
+    background:linear-gradient(150deg,var(--navy) 0%,var(--navy-deep) 100%);
+    color:#fff; border-radius:4px; padding:20mm 16mm 16mm; margin-bottom:10mm;
+  }
+  .cover .brand{
+    font-size:11px; letter-spacing:.3em; opacity:.75; margin-bottom:8mm;
+    display:flex; align-items:center; gap:8px;
+  }
+  .cover .brand::before{content:""; width:22px; height:1px; background:rgba(255,255,255,.5)}
+  .cover h1{font-size:30px; line-height:1.35; letter-spacing:.02em; margin-bottom:4mm; font-weight:700}
+  .cover .sub{font-size:13px; opacity:.85; margin-bottom:10mm}
+  .cover .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:4mm; border-top:1px solid rgba(255,255,255,.22); padding-top:6mm}
+  .cover .stat b{display:block; font-size:24px; font-weight:700; line-height:1.2; font-family:Georgia,serif}
+  .cover .stat span{font-size:10px; opacity:.72; letter-spacing:.08em}
+
+  .url-bar{
+    display:flex; justify-content:space-between; align-items:center;
+    border:1px solid var(--line); background:var(--panel); border-radius:3px;
+    padding:3mm 5mm; margin-bottom:10mm; font-size:11px; color:var(--ink-soft);
+  }
+  .url-bar b{color:var(--navy); font-weight:600}
+
+  /* ---------- 标题 ---------- */
+  h2.sec{
+    font-size:17px; color:var(--navy); letter-spacing:.06em;
+    padding-bottom:2.5mm; border-bottom:2px solid var(--navy); margin:10mm 0 6mm;
+    display:flex; align-items:baseline; gap:3mm;
+  }
+  h2.sec .no{font-family:Georgia,serif; font-size:13px; color:var(--ink-mute); font-weight:400}
+  h3{font-size:13.5px; color:var(--ink); margin:5mm 0 2.5mm}
+  p{margin-bottom:3mm; text-align:justify}
+  p.lead{font-size:13px; color:var(--ink-soft)}
+
+  /* ---------- 使用方式 ---------- */
+  .steps{display:grid; grid-template-columns:repeat(5,1fr); gap:3mm; margin:5mm 0}
+  .step{background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--navy); padding:4mm 3.5mm}
+  .step .n{font-family:Georgia,serif; font-size:20px; color:var(--navy); line-height:1; margin-bottom:2mm}
+  .step b{display:block; font-size:12px; margin-bottom:1.5mm}
+  .step p{font-size:10.5px; color:var(--ink-mute); margin:0; line-height:1.7}
+
+  /* ---------- 亮点卡片 ---------- */
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:4mm; margin:5mm 0}
+  .card{background:var(--panel); border:1px solid var(--line); padding:5mm 5mm 4mm; position:relative}
+  .card .tag{
+    position:absolute; top:-1px; left:-1px; background:var(--navy); color:#fff;
+    font-size:9px; padding:1mm 3mm; letter-spacing:.1em;
+  }
+  .card b{display:block; font-size:12.5px; margin:3mm 0 1.5mm; color:var(--ink)}
+  .card p{font-size:11px; color:var(--ink-soft); margin:0; line-height:1.8}
+
+  /* ---------- 表格 ---------- */
+  table{width:100%; border-collapse:collapse; margin:4mm 0; font-size:11.5px}
+  th{background:var(--navy); color:#fff; font-weight:600; padding:2.5mm 3mm; text-align:left; font-size:11px}
+  td{border:1px solid var(--line); padding:2.5mm 3mm; color:var(--ink-soft)}
+  tr:nth-child(even) td{background:var(--paper)}
+  td.num{font-family:Georgia,serif; font-weight:700; color:var(--navy); font-size:13px}
+
+  /* ---------- 技术条目 ---------- */
+  .tech{display:grid; grid-template-columns:1fr 1fr; gap:3mm 5mm; margin:4mm 0}
+  .tech .item{border-left:2px solid var(--navy); padding-left:4mm}
+  .tech .item b{display:block; font-size:12px; margin-bottom:1mm; color:var(--navy)}
+  .tech .item p{font-size:10.5px; color:var(--ink-soft); margin:0; line-height:1.75}
+
+  /* ---------- 图片 ---------- */
+  .shots{display:grid; grid-template-columns:1fr 1fr; gap:5mm; margin:5mm 0}
+  figure{border:1px solid var(--line); background:var(--panel); padding:2mm}
+  figure img{width:100%; display:block}
+  figcaption{font-size:10px; color:var(--ink-mute); padding:2mm 1mm 0.5mm; text-align:center}
+
+  /* ---------- 声明区 ---------- */
+  .decl{
+    display:grid; grid-template-columns:1fr 1fr; gap:5mm;
+    background:var(--paper); border:1px solid var(--line-soft); padding:5mm; margin-top:6mm;
+  }
+  .decl b{display:block; font-size:12px; color:var(--navy); margin-bottom:1.5mm}
+  .decl p{font-size:11px; color:var(--ink-soft); margin:0; line-height:1.8}
+
+  .foot-note{font-size:10px; color:var(--ink-mute); margin-top:8mm; text-align:center; letter-spacing:.05em}
+
+  /* ---------- 打印 ---------- */
+  @page{size:A4; margin:14mm 12mm}
+  @media print{
+    .page{width:auto; padding:0}
+    .cover{margin-bottom:8mm}
+    h2.sec{break-after:avoid}
+    .card,.step,.tech .item,figure,tr{break-inside:avoid}
+    .shots{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 封面区块 -->
+  <div class="cover">
+    <div class="brand">CONTRACTGUARD · 作品介绍</div>
+    <h1>合同风险审查官</h1>
+    <div class="sub">给即将签约的普通人，一套带法条依据的 AI 合同审查</div>
+    <div class="stats">
+      <div class="stat"><b>35/35</b><span>评测关注项召回</span></div>
+      <div class="stat"><b>1825</b><span>本地法条检索块</span></div>
+      <div class="stat"><b>24</b><span>三类合同审查项</span></div>
+      <div class="stat"><b>124</b><span>自动化测试</span></div>
+    </div>
+  </div>
+
+  <div class="url-bar">
+    <span>在线演示：<b>http://118.31.60.214:8000</b>（无需登录，匿名即用）</span>
+    <span>代码仓库：Gitee / GitHub — LDPlong/contract-guard</span>
+  </div>
+
+  <!-- 一、项目详情及使用方式 -->
+  <h2 class="sec"><span class="no">01</span>项目详情及使用方式</h2>
+  <p class="lead">
+    ContractGuard 面向没有法律背景的签约人群——租房的毕业生、暑期实习的学生、给培训机构交钱的家长。
+    他们签合同前最需要的是有人替自己逐条读一遍，可惜律师按小时收费、亲属多半只会说"看着别签"。
+    上传一份合同 PDF 或手机拍的照片，二十秒内得到：每一条的风险等级、改到什么程度才公平、
+    谈判时先争取什么，以及支持这些结论的《民法典》原文。
+  </p>
+  <p>
+    覆盖三类高频签约场景：房屋租赁（8 项审查）、实习与劳动用工（8 项）、培训贷与预付卡（8 项）。
+    本地法规库收录五部法律全文，切分为 1825 个检索块，结论引用的每一条都能在站内"法规库"回到原文核对。
+    无需注册登录：浏览器随机生成匿名会话隔离记录，文件与结论可随时删除。
+  </p>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>上传合同</b><p>拖入 PDF，或用手机拍一张合同照片直接审查；没有合同可一键加载内置示例。</p></div>
+    <div class="step"><div class="n">2</div><b>自动识别</b><p>识别租赁 / 劳动 / 培训贷类型，条款自动切分定位，无需手动标注。</p></div>
+    <div class="step"><div class="n">3</div><b>流式核对</b><p>按审查清单逐条比对，命中即实时上屏；置信度不足的结论标"待复核"。</p></div>
+    <div class="step"><div class="n">4</div><b>原文对照</b><p>条款视图与原版 PDF 双视图，命中条款带彩色风险边，点击结论直接跳转。</p></div>
+    <div class="step"><div class="n">5</div><b>追问导出</b><p>就这份合同追问细节；一页速览报告可打印导出 PDF。</p></div>
+  </div>
+
+  <!-- 二、项目亮点 -->
+  <h2 class="sec"><span class="no">02</span>项目亮点</h2>
+  <div class="cards">
+    <div class="card"><span class="tag">HIGHLIGHT 01</span>
+      <b>每条结论都有法条编号与原文</b>
+      <p>这是产品最值钱的地方，也是最容易幻觉的地方。四层闸门保证它：输出必须是合法 JSON；引用的法条必须存在于本地库；越界引用直接丢弃；零命中时结论降级为"待复核"而不是硬给答案。宁可承认不确定，绝不编造第五百八十五条。</p>
+    </div>
+    <div class="card"><span class="tag">HIGHLIGHT 02</span>
+      <b>结论与合同原文双视图联动</b>
+      <p>条款视图逐条对照，原版视图在 PDF 上按坐标框出风险条款。审查过程中这条通路曾完全失效过——两套条款 ID 各玩各的，页面看起来正常但高亮永远不出。修复后写入回归测试，这类"看起来对、实际断联"的静默故障被锁死。</p>
+    </div>
+    <div class="card"><span class="tag">HIGHLIGHT 03</span>
+      <b>谈判有次序，不止给等级</b>
+      <p>结论标注"必守 / 可谈 / 可让步"三类谈判优先级，汇总成一页速览：先谈什么、哪些可以让、哪些碰都不能碰。签约前的沟通场景直接可用，而不是只做风险罗列。</p>
+    </div>
+    <div class="card"><span class="tag">HIGHLIGHT 04</span>
+      <b>空白模板识别，示范文本不误报</b>
+      <p>官方示范文本是没填过的模板，第一版把"押金比例留空"当成"未约定退还条件"，对照组冒出 12 条误报。现在按填空标记密度识别空白模板并降级为"待填"提示——对照误报从 12 条降到 1 条。</p>
+    </div>
+    <div class="card"><span class="tag">HIGHLIGHT 05</span>
+      <b>面向公网的真实工程可靠性</b>
+      <p>三层防刷（每分钟限流 / 每日配额 / 平台额度兜底）、上传魔数与大小双重校验、SSE 断线自动回收、渲染异常不白屏的全局兜底、微信内置浏览器环境检测与引导。部署在公网服务器上真实可访问，不是本机演示。</p>
+    </div>
+    <div class="card"><span class="tag">HIGHLIGHT 06</span>
+      <b>能力边界诚实处理</b>
+      <p>拍照合同没有坐标就不假装能框原文，直接走多模态直读；置信度不足标"待复核"；首页明确"不能替代律师"。对能力边界的诚实，是法律工具最基本的专业性。</p>
+    </div>
+  </div>
+
+  <!-- 三、AI 测试技术落地 -->
+  <h2 class="sec"><span class="no">03</span>AI 测试技术落地使用情况</h2>
+  <p class="lead">
+    大模型输出不可复现，"可信的 AI"必须建立在可复现的评测之上。项目维护一份固定评测集与自动化跑分脚本：
+    每次调整提示词、更换模型或修改规则后重跑，命不命中按审查项 ID 直接比对——换模型的决策靠跑分说话，不靠感觉。
+  </p>
+  <h3>评测集构成</h3>
+  <p>
+    9 份样本、两组：6 份带问题的合同（租赁 2 / 劳动 2 / 预付卡 2），条款原文取自中国消费者协会
+    2025 年 3 月《这些不公平格式条款都需要整改》、成都市住建局 2025 年 5 月公开曝光的住房租赁案例
+    与劳动合同法禁止性规定，按合同体例汇编并逐条反向构造；另 3 份省级以上官方示范文本作对照组。
+    每份样本逐条标注"必须命中的审查项 + 依据法条"。
+  </p>
+  <h3>跑分结果（线上真实调用记录）</h3>
+  <table>
+    <tr><th style="width:30%">指标</th><th style="width:22%">结果</th><th>说明</th></tr>
+    <tr><td>关注项召回</td><td class="num">35/35 = 100%</td><td>6 份问题样本全部命中，漏报 0</td></tr>
+    <tr><td>高风险召回</td><td class="num">25/25 = 100%</td><td>押金、违约金、转租、社保等高风险项全部命中</td></tr>
+    <tr><td>中风险召回</td><td class="num">10/10 = 100%</td><td>涨租单方权、管辖倾斜等中风险项全部命中</td></tr>
+    <tr><td>示范文本误报</td><td class="num">1 / 83 条款（1.2%）</td><td>对照组仅 1 条中风险：试用期工资标准留空</td></tr>
+    <tr><td>平均单份耗时</td><td class="num">22.9 秒</td><td>线上模型（deepseek-v4.1-flash）真实调用</td></tr>
+  </table>
+  <p>
+    换模型后重跑评测确认结论质量一致（召回不变），这是"能不能换 key"的决策依据。
+    评测之外另有专项测试：空白模板降级 4 项、答疑越界拒答与引用校验 9 项、
+    工程防护（限流绕过 / 配额顺序 / 超限上传 / 会话隔离）14 项。
+  </p>
+
+  <!-- 四、关键技术 -->
+  <h2 class="sec"><span class="no">04</span>项目中涉及的关键技术</h2>
+  <div class="tech">
+    <div class="item"><b>条款预筛：成本与准确率的共同杠杆</b>
+      <p>逐项遍历全部条款是上百次模型调用的笛卡尔积。先用关键词与文档内 BM25 把每个审查项收敛到 Top-K 候选，再交模型判定——调用次数降一个量级，上下文更聚焦反而提升质量。</p>
+    </div>
+    <div class="item"><b>防幻觉四层闸门</b>
+      <p>JSON 结构校验 → 引用存在性校验 → 越界引用丢弃 → 零命中降级"待复核"。模型被限定在"判定与措辞"，法条事实完全由本地法规库供给。</p>
+    </div>
+    <div class="item"><b>混合检索与自动降级</b>
+      <p>BM25（jieba 分词）与向量检索（bge-m3）经 RRF 融合排序；未配置 embedding 服务时自动降级纯 BM25，检索链路在任何部署形态下都可用。</p>
+    </div>
+    <div class="item"><b>POST SSE 流式架构</b>
+      <p>审查契约是 POST + 流式响应（EventSource 只支持 GET），前端 fetch + ReadableStream 手动解析帧；命中即上屏、断线回收状态、跨文档丢弃晚到帧。</p>
+    </div>
+    <div class="item"><b>多模态拍照合同直读</b>
+      <p>手机照片无文字层与坐标，走视觉模型直读后按普通文本流审查；结论不提供原文坐标标注——没有坐标就不假装能框。</p>
+    </div>
+    <div class="item"><b>面向公网的工程防护</b>
+      <p>接口限流（重操作 12 次/分钟）+ 每日配额（审查 1000 次/天）+ 平台额度三层防刷；上传魔数/大小双校验；SSE 断线状态回收；全局错误兜底不白屏。</p>
+    </div>
+  </div>
+
+  <!-- 五、项目相关图片 -->
+  <h2 class="sec"><span class="no">05</span>项目相关图片</h2>
+  <div class="shots">
+    <figure>
+      <img src="img/ui-home.png" alt="首页">
+      <figcaption>图 1　首页：上传区 + 一键体验内置示例合同</figcaption>
+    </figure>
+    <figure>
+      <img src="img/审查结果页.png" alt="审查结果页">
+      <figcaption>图 2　审查结果页：左栏原文风险色边，右栏结论卡与法条依据、谈判次序</figcaption>
+    </figure>
+    <figure>
+      <img src="img/ui-laws.png" alt="法规库">
+      <figcaption>图 3　法规库：五部法律按条浏览，结论引用的每一条都可回到原文核对</figcaption>
+    </figure>
+    <figure>
+      <img src="img/ui-assistant.png" alt="答疑助手">
+      <figcaption>图 4　答疑助手：就当前合同追问，回答先给检索到的法条依据</figcaption>
+    </figure>
+  </div>
+
+  <!-- 六、发表与获奖 -->
+  <h2 class="sec"><span class="no">06</span>项目之前是否发表过或获奖</h2>
+  <p>
+    本项目为团队原创开发，此前未公开发表，无获奖记录。本次比赛为首次参赛。
+  </p>
+
+  <!-- 七、是否基于其他项目优化 -->
+  <h2 class="sec"><span class="no">07</span>是否基于其他项目优化</h2>
+  <p>
+    本项目为独立设计开发，不基于任何已有开源项目或比赛作品优化，业务逻辑、审查清单、
+    防幻觉闸门、评测体系与全部交互设计均为原创。
+  </p>
+  <div class="decl">
+    <div>
+      <b>关于大模型能力</b>
+      <p>模型推理通过千问AI 平台（Token Plan 订阅）的 OpenAI 兼容接口调用，属于正常的技术集成；
+      项目侧自建审查清单、法条检索、引用校验与评测体系，模型被严格限定在"判定与措辞"的角色。</p>
+    </div>
+    <div>
+      <b>关于开源框架</b>
+      <p>前端 Vue / Vite / Tailwind、后端 FastAPI、解析库 PyMuPDF 均为行业通用基础设施；
+      在其上的架构设计（单进程单端口托管、SSE 流式契约、空白模板识别等）为本项目原创。</p>
+    </div>
+  </div>
+
+  <p class="foot-note">CONTRACTGUARD · 合同风险审查官 · 2026 年 11 月</p>
+</div>
+</body>
+</html>
