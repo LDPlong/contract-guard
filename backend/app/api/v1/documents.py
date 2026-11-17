@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, File, Form, Header, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -94,7 +95,9 @@ async def list_documents(
                 "contract_type": d.contract_type,
                 "safety_score": review.safety_score if review else None,
                 "status": review.status if review else "parsed",
-                "created_at": d.created_at.isoformat(),
+                # 库里存的是 UTC（SQLite now() 即 UTC）；裸 isoformat 没有时区后缀，
+                # 前端会按本地时区解析，出现"刚提交却显示 8 小时前"
+                "created_at": d.created_at.replace(tzinfo=timezone.utc).isoformat(),
             }
         )
     return ok(items)
