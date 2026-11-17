@@ -59,7 +59,6 @@ onMounted(() => {
             class="text-ink-soft transition-colors hover:text-ink"
             active-class="!text-ink"
           >使用说明</RouterLink>
-          <HistoryMenu />
         </nav>
 
         <div class="flex items-center gap-3">
@@ -71,6 +70,7 @@ onMounted(() => {
             演示模式
           </span>
           <!-- 服务正常是默认态，不值得占一块视觉；只有出问题时才在这里说话 -->
+          <HistoryMenu />
           <span
             v-if="app.healthState === 'offline'"
             class="flex items-center gap-1.5 text-[11px] text-risk-high"

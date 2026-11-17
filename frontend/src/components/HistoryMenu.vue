@@ -85,14 +85,14 @@ onBeforeUnmount(() => {
       @click="toggle"
     >
       <Clock :size="13" />
-      我的审查
+      审查记录
     </button>
 
     <div
       v-if="open"
       class="absolute right-0 top-8 z-40 w-[280px] border border-line bg-white shadow-lift"
       role="menu"
-      aria-label="审查历史"
+      aria-label="审查记录"
     >
       <p v-if="loading" class="px-4 py-4 text-[12px] text-ink-faint">加载中…</p>
       <p v-else-if="!items.length" class="px-4 py-4 text-[12px] leading-relaxed text-ink-faint">
