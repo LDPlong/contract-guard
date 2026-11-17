@@ -1,31 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AssistantDock from '@/components/AssistantDock.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import HistoryMenu from '@/components/HistoryMenu.vue'
 import { onGlobalError } from '@/lib/errorBus'
 import { useAppStore } from '@/stores/app'
 
 const app = useAppStore()
-
-const healthLabel = computed(() => {
-  switch (app.healthState) {
-    case 'online':
-      return app.health?.db ? '服务正常' : '服务降级'
-    case 'checking':
-      return '检测中'
-    case 'offline':
-      return '后端未连接'
-    default:
-      return '未检测'
-  }
-})
-
-const healthTone = computed(() => {
-  if (app.healthState === 'online') return app.health?.db ? 'bg-risk-low' : 'bg-risk-medium'
-  if (app.healthState === 'checking') return 'bg-ink-faint'
-  return 'bg-risk-high'
-})
 
 // 兜底提示：错误边界之外的异常只在控制台留痕，用户需要看到一句话
 const globalError = ref('')
@@ -77,6 +59,7 @@ onMounted(() => {
             class="text-ink-soft transition-colors hover:text-ink"
             active-class="!text-ink"
           >使用说明</RouterLink>
+          <HistoryMenu />
         </nav>
 
         <div class="flex items-center gap-3">
@@ -87,9 +70,14 @@ onMounted(() => {
           >
             演示模式
           </span>
-          <span class="flex items-center gap-1.5 text-[11px] text-ink-faint" :title="app.lastError">
-            <span class="h-1 w-1 rounded-full" :class="healthTone" />
-            {{ healthLabel }}
+          <!-- 服务正常是默认态，不值得占一块视觉；只有出问题时才在这里说话 -->
+          <span
+            v-if="app.healthState === 'offline'"
+            class="flex items-center gap-1.5 text-[11px] text-risk-high"
+            :title="app.lastError"
+          >
+            <span class="h-1.5 w-1.5 rounded-full bg-risk-high" />
+            服务不可达
           </span>
         </div>
       </div>

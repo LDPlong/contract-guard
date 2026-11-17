@@ -1,6 +1,13 @@
 import http, { getSessionId, request } from '@/api/http'
 import { sseStream } from '@/lib/sse'
-import type { DocumentDetail, HealthStatus, ReviewDetail, StreamEvent, UploadResult } from '@/types'
+import type {
+  DocumentDetail,
+  DocumentListItem,
+  HealthStatus,
+  ReviewDetail,
+  StreamEvent,
+  UploadResult,
+} from '@/types'
 
 /** 8.10 健康检查：返回裸 JSON，没有 {code,message,data} 信封，不能走 request() */
 export async function fetchHealth(): Promise<HealthStatus> {
@@ -23,6 +30,11 @@ export async function uploadDocument(
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 30_000,
   })
+}
+
+/** 8.1 文档列表：本会话审查过的合同，供顶栏「我的审查」下拉使用 */
+export async function listDocuments(): Promise<DocumentListItem[]> {
+  return request<DocumentListItem[]>({ url: '/documents', method: 'GET' })
 }
 
 /** 8.2 文档详情（含条款与 bbox） */

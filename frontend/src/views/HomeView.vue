@@ -97,6 +97,25 @@ function openPicker() {
   fileInput.value?.click()
 }
 
+/** 示例合同：不用自己找文件，点一下就能看到完整审查流程 */
+const demoLoading = ref(false)
+
+async function loadDemo() {
+  if (demoLoading.value) return
+  demoLoading.value = true
+  errorMsg.value = ''
+  try {
+    const resp = await fetch('/samples/demo-lease.pdf')
+    if (!resp.ok) throw new Error(`示例文件加载失败（${resp.status}）`)
+    const blob = await resp.blob()
+    selected.value = new File([blob], '示例合同_长租机构版.pdf', { type: 'application/pdf' })
+    await submit()
+  } catch (err) {
+    errorMsg.value = err instanceof Error ? err.message : '示例合同加载失败，请直接上传文件。'
+    demoLoading.value = false
+  }
+}
+
 function onPrimary() {
   if (!selected.value) {
     openPicker()
@@ -247,6 +266,16 @@ async function submit() {
           <FileText v-else-if="!selected" :size="14" />
           <span>{{ primaryLabel }}</span>
           <ArrowRight v-if="phase === 'idle' && selected" :size="14" />
+        </button>
+
+        <button
+          type="button"
+          class="btn-ghost"
+          :disabled="demoLoading"
+          @click="loadDemo"
+        >
+          <Loader2 v-if="demoLoading" :size="14" class="animate-spin" />
+          <span>{{ demoLoading ? '正在加载示例…' : '没有合同？用示例试一试' }}</span>
         </button>
 
         <RouterLink to="/guide" class="btn-ghost">查看使用说明</RouterLink>

@@ -17,7 +17,8 @@ from app.core.constants import ErrorCode
 from app.core.errors import BadRequest, BizError, ParseFailed, ok
 from app.core.logging import get_logger
 from app.models.base import get_session
-from app.models.document import Clause
+from app.models.document import Clause, Document
+from app.models.review import Review
 from app.schemas.document import DeleteOut, UploadOut, to_detail
 from app.services import document_service
 from app.services.storage import save_upload
@@ -44,6 +45,59 @@ async def _count_clauses(session: AsyncSession, document_id: str) -> int:
         select(func.count()).select_from(Clause).where(Clause.document_id == document_id)
     )
     return int(total or 0)
+
+
+@router.get("", summary="文档列表（本会话，含最近一次审查状态）")
+async def list_documents(
+    x_session_id: str | None = Header(default=None, alias=SESSION_HEADER),
+    session: AsyncSession = Depends(get_session),
+):
+    """本会话上传的文档，供「我的审查」下拉回看。
+
+    最近一次审查的状态与安全分一并返回；没有审查记录的文档 status=parsed。
+    前端类型契约见 types/index.ts 的 DocumentListItem。
+    """
+    if not x_session_id:
+        raise BizError(ErrorCode.SESSION_INVALID, "缺少 X-Session-Id")
+
+    docs = (
+        await session.scalars(
+            select(Document)
+            .where(Document.session_id == _require_session(x_session_id))
+            .order_by(Document.created_at.desc())
+            .limit(50)
+        )
+    ).all()
+    if not docs:
+        return ok([])
+
+    # 每份文档取最近一次审查；上限 50 份，应用层取第一条足够
+    doc_ids = [d.id for d in docs]
+    reviews = (
+        await session.scalars(
+            select(Review)
+            .where(Review.document_id.in_(doc_ids))
+            .order_by(Review.started_at.desc())
+        )
+    ).all()
+    latest: dict[str, Review] = {}
+    for review in reviews:
+        latest.setdefault(review.document_id, review)
+
+    items = []
+    for d in docs:
+        review = latest.get(d.id)
+        items.append(
+            {
+                "document_id": d.id,
+                "filename": d.filename,
+                "contract_type": d.contract_type,
+                "safety_score": review.safety_score if review else None,
+                "status": review.status if review else "parsed",
+                "created_at": d.created_at.isoformat(),
+            }
+        )
+    return ok(items)
 
 
 @router.post("", summary="上传合同（8.1）")

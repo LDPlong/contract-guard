@@ -136,3 +136,27 @@ async def test_delete_then_404(client, sample_pdf_bytes):
 
     resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"X-Session-Id": SESSION})
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_document_list_returns_latest_review(client, sample_pdf_bytes):
+    doc_id = (await upload(client, sample_pdf_bytes)).json()["data"]["document_id"]
+
+    resp = await client.get("/api/v1/documents", headers={"X-Session-Id": SESSION})
+    assert resp.status_code == 200
+    items = resp.json()["data"]
+    assert items, "本会话刚上传的文档必须出现在列表里"
+
+    item = next(i for i in items if i["document_id"] == doc_id)
+    assert item["filename"].endswith(".pdf")
+    assert item["contract_type"] in {"lease", "labor", "prepaid", "unknown"}
+    # 还没审查：状态 parsed、安全分 null
+    assert item["status"] == "parsed"
+    assert item["safety_score"] is None
+
+
+@pytest.mark.asyncio
+async def test_document_list_is_session_scoped(client, sample_pdf_bytes):
+    await upload(client, sample_pdf_bytes)
+    other = await client.get("/api/v1/documents", headers={"X-Session-Id": "another-session"})
+    assert other.json()["data"] == []
