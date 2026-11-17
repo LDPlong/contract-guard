@@ -97,6 +97,12 @@ function openPicker() {
   fileInput.value?.click()
 }
 
+/**
+ * 微信内置浏览器（X5 内核）的文件选择器不支持选 PDF，
+ * 点"选择合同 PDF"只会弹出拍摄/相册。前端绕不过，只能引导换浏览器打开。
+ */
+const inWeChat = /MicroMessenger/i.test(navigator.userAgent)
+
 /** 示例合同：不用自己找文件，点一下就能看到完整审查流程 */
 const demoLoading = ref(false)
 
@@ -200,6 +206,18 @@ async function submit() {
 
     <!-- 投放区 -->
     <section class="mt-9">
+      <div
+        v-if="inWeChat"
+        class="mb-4 flex items-start gap-2.5 border border-risk-medium/40 bg-risk-medium/5 px-3.5 py-3"
+        role="alert"
+      >
+        <AlertCircle :size="15" class="mt-0.5 shrink-0 text-risk-medium" />
+        <p class="text-[12px] leading-relaxed text-ink-soft">
+          当前在微信内打开，可能无法选择 PDF 文件（只能拍照 / 相册）。
+          点右上角「···」选择<b class="text-ink">「在浏览器打开」</b>即可正常上传。
+          相册里的合同照片也可以直接审查。
+        </p>
+      </div>
       <div
         class="group relative flex min-h-[240px] cursor-pointer flex-col items-center justify-center overflow-hidden border border-dashed px-6 py-10 text-center transition-colors duration-200 sm:min-h-[260px]"
         :class="
