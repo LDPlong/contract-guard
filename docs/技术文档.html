@@ -75,9 +75,9 @@
     <div><span>四、AI 技术方案</span><span>7</span></div>
     <div><span>五、核心功能实现</span><span>11</span></div>
     <div><span>六、测试与部署</span><span>14</span></div>
-    <div><span>七、总结与展望</span><span>17</span></div>
-    <div><span>附录 A：AI 技术选型说明</span><span>18</span></div>
-    <div><span>附录 B：创新点说明</span><span>19</span></div>
+    <div><span>七、总结与展望</span><span>18</span></div>
+    <div><span>附录 A：AI 技术选型说明</span><span>19</span></div>
+    <div><span>附录 B：创新点说明</span><span>20</span></div>
   </div>
   <p class="small" style="margin-top:8mm">
     说明：本文档中的性能数据、命中率均为本机实测（Windows 11 / Python 3.13 / Node 22），
@@ -596,7 +596,7 @@ data: {"done":4,"total":10}</pre>
   <table>
     <tr><th style="width:34%">场景</th><th style="width:20%">输入</th><th>结果</th></tr>
     <tr><td>PDF 解析 + 切分</td><td>广东省住房租赁合同示范文本，15 页</td><td>514 个文本行 → 16 条条款，类型识别 lease（关键词打分 59 分，次高 prepaid 6 分）</td></tr>
-    <tr><td>完整审查</td><td>同上</td><td>10 项清单全部进入判定，6 条结论按低风险输出（空白待填类提示），安全分 88，耗时约 9 秒</td></tr>
+    <tr><td>完整审查</td><td>同上</td><td>10 项清单全部进入判定，6 条结论按低风险输出（空白待填类提示），安全分 92，耗时约 33 秒</td></tr>
     <tr><td>图片合同</td><td>合同照片 834×542</td><td>3 条条款正确识别，审查 3.7 秒，输出 2 条高风险 + 1 条中风险</td></tr>
     <tr><td>坏文件</td><td>扩展名 .pdf、内容是文本</td><td>按文件头拒绝，返回 1002，提示"仅支持真实 PDF"</td></tr>
     <tr><td>会话隔离</td><td>换 session 查询他人的审查结果</td><td>404，不泄露存在性以外信息</td></tr>
@@ -612,9 +612,9 @@ data: {"done":4,"total":10}</pre>
   <table>
     <tr><th style="width:36%">组别</th><th style="width:14%">条款数</th><th>结果</th></tr>
     <tr><td>问题样本 6 份（租赁 2 / 劳动 2 / 预付卡 2）</td><td>56</td>
-      <td>35 项关注项全部命中：高风险 25/25、中风险 10/10；单份耗时 7~11 秒</td></tr>
+      <td>35 项关注项全部命中：高风险 25/25、中风险 10/10；单份耗时 14~33 秒</td></tr>
     <tr><td>对照组 3 份（省级以上示范文本）</td><td>83</td>
-      <td>判为高风险 0 条；中风险 3 条，均为「留空待填」类提示，按条款计误报率 3.6%</td></tr>
+      <td>判为高风险 0 条；中风险仅 1 条（江西省劳动合同示范文本：试用期工资标准留空，因填空密度未触发空白模板降级），按条款计误报率 1.2%</td></tr>
   </table>
   <p>
     <strong>关于「空白模板」这一课。</strong>官方示范文本是没填过的模板，押金比例、违约金标准、
@@ -625,7 +625,7 @@ data: {"done":4,"total":10}</pre>
     现在的做法是先判断整份文件是不是空白模板：统计每条条款的填空标记数（勾选框、方括号、
     下划线、「第＿种」都算），示范文本约 4.8 处/条，已填写的合同 0.5 处/条以下，阈值取 2.0。
     判为模板时把中风险结论降为低风险并标注「空白待填」，<strong>高风险一律不动</strong>——
-    「概不退款」即使写在模板里也仍然是风险。改完后 12 条降到 3 条，对照组 88 / 94 / 85。
+    「概不退款」即使写在模板里也仍然是风险。改完后对照组中风险从 3 条降到 1 条，安全分 92 / 96 / 91。
   </p>
   <table>
     <tr><th style="width:44%">样本</th><th style="width:12%">类型</th><th style="width:10%">条款</th>
@@ -636,7 +636,7 @@ data: {"done":4,"total":10}</pre>
     <tr><td>二房东房屋转租协议</td><td>租赁</td><td>9</td><td>0</td><td>7/7</td></tr>
     <tr><td>制造业劳动合同</td><td>劳动</td><td>10</td><td>2</td><td>8/8</td></tr>
     <tr><td>餐饮门店聘用合同</td><td>劳动</td><td>9</td><td>21</td><td>6/6</td></tr>
-    <tr><td>广东省住房租赁合同示范文本</td><td>租赁</td><td>16</td><td>88</td><td>对照组</td></tr>
+    <tr><td>广东省住房租赁合同示范文本</td><td>租赁</td><td>16</td><td>92</td><td>对照组</td></tr>
     <tr><td>中小学生校外培训服务合同示范文本</td><td>预付卡</td><td>11</td><td>94</td><td>对照组</td></tr>
     <tr><td>江西省劳动合同示范文本</td><td>劳动</td><td>56</td><td>85</td><td>对照组</td></tr>
   </table>

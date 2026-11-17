@@ -20,7 +20,10 @@ import pymupdf
 
 PAGE_W, PAGE_H = 595, 842
 MARGIN_X, MARGIN_TOP, MARGIN_BOTTOM = 64, 72, 72
-FONT, FONT_SIZE, LINE_HEIGHT = "china-s", 10.5, 17.0
+FONT, FONT_SIZE, LINE_HEIGHT = "FangSongEmbed", 10.5, 17.0
+# 内置 CJK 字体（china-s）只放引用不放字形，浏览器的 pdf.js 渲染出来是空白页。
+# 必须嵌入真实字体文件，并在保存前子集化——全集 10MB，子集只有几百 KB。
+FONT_FILE = Path(r"C:/Windows/Fonts/simfang.ttf")
 # 中文全角，单字宽度≈字号，可用宽度 595-128=467pt → 约 44 字/行
 MAX_CHARS = 43
 
@@ -79,9 +82,13 @@ def render(text: str, out_path: Path, title: str | None = None) -> int:
         for piece in wrap(logical):
             if y > PAGE_H - MARGIN_BOTTOM:
                 new_page()
-            page.insert_text((MARGIN_X, y), piece, fontname=FONT, fontsize=FONT_SIZE)
+            page.insert_text(
+                (MARGIN_X, y), piece,
+                fontname=FONT, fontfile=str(FONT_FILE), fontsize=FONT_SIZE,
+            )
             y += LINE_HEIGHT
 
+    doc.subset_fonts()
     doc.save(out_path)
     doc.close()
     return pages
