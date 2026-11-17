@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from datetime import date
 
 from fastapi import Request
 
@@ -53,6 +54,50 @@ def is_heavy(request: Request) -> bool:
 
 def is_exempt(path: str) -> bool:
     return path.startswith(EXEMPT_PREFIXES)
+
+
+def quota_bucket(path: str, method: str) -> str | None:
+    """返回每日配额桶名；None 表示该请求不占配额。
+
+    只有真正消耗模型调用的操作计数：完整审查、答疑。
+    上传与解析不调模型，不占配额。
+    """
+    if method != "POST":
+        return None
+    if path.endswith("/review"):
+        return "review"
+    if path.rstrip("/").endswith("/assistant/ask"):
+        return "assistant"
+    return None
+
+
+class DailyQuota:
+    """按自然日计数的配额。
+
+    重启清零——配额的目的是防刷，不是精确计费，这个偏差可以接受。
+    """
+
+    def __init__(self) -> None:
+        self._counts: dict[str, int] = {}
+        self._day = ""
+
+    def hit(self, bucket: str, limit: int) -> tuple[bool, int]:
+        """记一次。返回 (是否放行, 已用次数)。"""
+        if limit <= 0:
+            return True, 0
+        today = date.today().isoformat()
+        if today != self._day:
+            self._counts.clear()
+            self._day = today
+        used = self._counts.get(bucket, 0)
+        if used >= limit:
+            return False, used
+        self._counts[bucket] = used + 1
+        return True, used + 1
+
+    def reset(self) -> None:
+        self._counts.clear()
+        self._day = ""
 
 
 class RateLimiter:
@@ -99,3 +144,4 @@ class RateLimiter:
 
 
 limiter = RateLimiter()
+daily_quota = DailyQuota()

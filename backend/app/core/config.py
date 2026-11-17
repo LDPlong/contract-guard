@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 120
     rate_limit_heavy_per_minute: int = 12
+    # 每日配额：防恶意刷量把订阅月额度提前烧光。0 表示不限。
+    review_daily_limit: int = 100
+    assistant_daily_limit: int = 300
 
     # ---- 检索 ----
     retrieve_top_k: int = 20

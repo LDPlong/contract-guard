@@ -21,7 +21,7 @@ from app.core.config import get_settings
 from app.core.constants import ErrorCode
 from app.core.errors import BizError, ok
 from app.core.logging import get_logger, request_id_ctx, setup_logging
-from app.core.ratelimit import client_ip, is_exempt, is_heavy, limiter
+from app.core.ratelimit import client_ip, daily_quota, is_exempt, is_heavy, limiter, quota_bucket
 from app.models.base import engine, init_models
 from app.services.document_service import repair_stale_parsing
 
@@ -85,6 +85,27 @@ async def rate_limit(request: Request, call_next):
     """
     if not settings.rate_limit_enabled or is_exempt(request.url.path):
         return await call_next(request)
+
+    # 每日配额先查：超了直接拒，不再消耗每分钟窗口
+    quota_name = quota_bucket(request.url.path, request.method)
+    if quota_name:
+        limit = (
+            settings.review_daily_limit
+            if quota_name == "review"
+            else settings.assistant_daily_limit
+        )
+        allowed, used = daily_quota.hit(quota_name, limit)
+        if not allowed:
+            label = "审查" if quota_name == "review" else "答疑"
+            log.warning("daily quota exceeded bucket=%s used=%s", quota_name, used)
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "code": int(ErrorCode.RATE_LIMITED),
+                    "message": f"今日{label}次数已达上限（{limit} 次），明日自动恢复",
+                    "data": {"bucket": quota_name, "used": used, "limit": limit},
+                },
+            )
 
     heavy = is_heavy(request)
     bucket = "heavy" if heavy else "default"

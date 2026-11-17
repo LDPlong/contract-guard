@@ -10,9 +10,11 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.ratelimit import RateLimiter, client_ip, is_heavy
+from app.core.ratelimit import DailyQuota, RateLimiter, client_ip, is_heavy, quota_bucket
 from app.main import app, settings
 
+
+SESSION = "test-ratelimit"
 
 @pytest.fixture()
 async def client():
@@ -145,3 +147,50 @@ async def test_limiter_can_be_disabled(client, monkeypatch):
     for _ in range(3):
         resp = await client.post("/api/v1/documents")
         assert resp.status_code == 400
+
+
+# ---------- 每日配额 ----------
+
+
+def test_quota_bucket_matches_model_consuming_paths():
+    from starlette.requests import Request
+
+    def make(method: str, path: str) -> Request:
+        scope = {"type": "http", "method": method, "path": path, "headers": [], "query_string": b""}
+        return Request(scope)
+
+    assert quota_bucket("/api/v1/documents/x/review", "POST") == "review"
+    assert quota_bucket("/api/v1/assistant/ask", "POST") == "assistant"
+    # 上传与解析不调模型，不占配额
+    assert quota_bucket("/api/v1/documents", "POST") is None
+    assert quota_bucket("/api/v1/documents/x/review", "GET") is None
+    assert quota_bucket("/api/v1/knowledge/articles", "GET") is None
+
+
+def test_daily_quota_resets_by_day():
+    quota = DailyQuota()
+    assert quota.hit("review", limit=1) == (True, 1)
+    assert quota.hit("review", limit=1) == (False, 1)
+
+
+@pytest.mark.asyncio
+async def test_review_daily_quota_returns_429(client, monkeypatch):
+    monkeypatch.setattr(settings, "review_daily_limit", 1)
+    from app.core.ratelimit import daily_quota
+
+    daily_quota.reset()
+
+    # 不存在的文档：路由抛 404，但配额在中间件计数——挡在模型调用之前
+    first = await client.post(
+        "/api/v1/documents/does-not-exist/review", headers={"X-Session-Id": SESSION}
+    )
+    assert first.status_code == 404
+
+    second = await client.post(
+        "/api/v1/documents/does-not-exist/review", headers={"X-Session-Id": SESSION}
+    )
+    assert second.status_code == 429
+    body = second.json()
+    assert body["code"] == 4290
+    assert "上限" in body["message"]
+    assert body["data"]["bucket"] == "review"
