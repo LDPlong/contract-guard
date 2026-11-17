@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from datetime import timezone
+
 from app.core.constants import SUPPORTED_CONTRACT_TYPES, ErrorCode
 from app.core.errors import BizError, ParseFailed, UnsupportedContractType, ok
 from app.core.logging import get_logger
@@ -92,7 +94,9 @@ async def list_reviews(
                 "review_id": r.id,
                 "status": r.status,
                 "safety_score": r.safety_score,
-                "started_at": r.started_at.isoformat() if r.started_at else None,
+                "started_at": (
+                r.started_at.replace(tzinfo=timezone.utc).isoformat() if r.started_at else None
+            ),
             }
             for r in rows
         ]

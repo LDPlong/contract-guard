@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 from app.models.base import get_session
 from app.models.knowledge import KnowledgeDoc
 from app.schemas.knowledge import ArticleListOut, ArticleOut, SearchOut
-from app.services.rag.retriever import Retriever
+from app.services.rag.retriever import get_retriever
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 log = get_logger(__name__)
@@ -116,7 +116,7 @@ async def search(
     q: str = Query(min_length=1),
     top_k: int = Query(default=5, ge=1, le=20),
 ) -> dict:
-    retriever = Retriever()
+    retriever = get_retriever()
     if not retriever.available:
         raise BizError(ErrorCode.RETRIEVE_EMPTY, "法规索引未构建，请先运行 build_index")
 

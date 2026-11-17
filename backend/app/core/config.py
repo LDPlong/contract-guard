@@ -56,6 +56,9 @@ class Settings(BaseSettings):
 
     # ---- 限流 ----
     # heavy 档：上传、发起审查、答疑——都是模型调用或磁盘写入的入口
+    # 公网 8000 直连部署时必须保持 False：X-Forwarded-For 由客户端任意伪造，
+    # 盲信它等于给每个攻击者无限个独立限流桶。置于反代之后才可开启。
+    trust_proxy_headers: bool = False
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 120
     rate_limit_heavy_per_minute: int = 12

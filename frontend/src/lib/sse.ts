@@ -55,8 +55,10 @@ export async function* sseStream<F extends { event: string }>(
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      // CRLF 统一折成 LF，帧分隔就只需要找 \n\n
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+      buffer += decoder.decode(value, { stream: true })
+      // CRLF 统一折成 LF。必须对拼接后的整个 buffer 做：chunk 边界恰好切开
+      // \r\n 时，逐 chunk replace 会漏掉跨边界的对
+      buffer = buffer.replace(/\r\n/g, '\n')
 
       let boundary = buffer.indexOf('\n\n')
       while (boundary >= 0) {
@@ -67,6 +69,12 @@ export async function* sseStream<F extends { event: string }>(
       }
     }
   } finally {
+    // 消费方提前退出（break/异常）时主动断流，不让服务端把剩余事件跑完
+    try {
+      await reader.cancel()
+    } catch {
+      /* 连接已断时 cancel 会失败，忽略 */
+    }
     reader.releaseLock()
   }
 }

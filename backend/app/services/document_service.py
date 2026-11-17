@@ -213,7 +213,8 @@ async def repair_stale_parsing(minutes: int = STALE_PARSING_MINUTES) -> int:
 
     单 worker + 进程内任务，重启即丢任务，状态必须回收，否则前端会一直轮询。
     """
-    cutoff = datetime.now() - timedelta(minutes=minutes)
+    # created_at 存的是 UTC（SQLite now()），cutoff 必须同口径，否则宽限期失效
+    cutoff = datetime.utcnow() - timedelta(minutes=minutes)
     async with SessionLocal() as session:
         result = await session.execute(
             update(Document)
@@ -224,4 +225,14 @@ async def repair_stale_parsing(minutes: int = STALE_PARSING_MINUTES) -> int:
         count = result.rowcount or 0
     if count:
         log.warning("repaired %s stale parsing documents", count)
+
+    # 审查流同理：异常路径之外的残留 running 记录一并回收
+    result = await session.execute(
+        update(Review)
+        .where(Review.status == "running", Review.finished_at.is_(None))
+        .values(status="failed", finished_at=datetime.utcnow(), summary="服务重启，审查中断")
+    )
+    await session.commit()
+    if result.rowcount:
+        log.warning("repaired %s stale running reviews", result.rowcount)
     return count

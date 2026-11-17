@@ -74,8 +74,15 @@ function styleOf(clause: Clause) {
   }
 }
 
+/** 渲染任务引用：连续缩放时先取消上一轮，避免同一 canvas 并发 render 抛错 */
+let renderTask: { cancel: () => void; promise: Promise<void> } | null = null
+/** 加载序号：teardown/换文档后递增，在途 await 完成时发现序号不符即丢弃结果 */
+let loadSeq = 0
+
 async function paintPages() {
   if (!pdfDoc || !canvasHost.value) return
+  renderTask?.cancel()
+  renderTask = null
   const canvases = canvasHost.value.querySelectorAll<HTMLCanvasElement>('canvas[data-page]')
   const available = Math.min(VIEW_MAX_WIDTH, scroller.value?.clientWidth ?? VIEW_MAX_WIDTH) - 32
   // 下限只防“缩到看不清”。原来写死 460，在 390 宽屏上比容器还宽，页面直接横向溢出
@@ -96,7 +103,18 @@ async function paintPages() {
     if (!ctx) continue
     const params: Record<string, unknown> = { canvasContext: ctx, viewport }
     if (dpr !== 1) params.transform = [dpr, 0, 0, dpr, 0, 0]
-    await page.render(params).promise
+    const task = page.render(params)
+    renderTask = task
+    try {
+      await task.promise
+    } catch (err) {
+      // 用户连续缩放时的主动取消不算异常；其余渲染错误上报但不中断其余页
+      if (!(err instanceof Error && err.name === 'RenderingCancelledException')) {
+        console.error('[pdf 渲染]', err)
+      }
+    } finally {
+      if (renderTask === task) renderTask = null
+    }
 
     const meta = metas.value.find((m) => m.no === pageNo)
     if (meta) meta.cssScale = viewport.width / meta.widthPt
@@ -107,14 +125,22 @@ async function paintPages() {
 async function upgradeToPdf() {
   if (pdfState.value !== 'idle' || !props.documentId) return
   pdfState.value = 'loading'
+  const seq = loadSeq
 
   try {
     const bytes = await fetchDocumentFile(props.documentId)
+    if (seq !== loadSeq) return
     const pdfjs: any = await import('pdfjs-dist')
     const worker: { default: string } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
     pdfjs.GlobalWorkerOptions.workerSrc = worker.default
 
-    pdfDoc = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise
+    // teardown/换文档发生在加载期间：销毁刚拿到的文档，防止泄漏
+    if (seq !== loadSeq) {
+      void doc.destroy()
+      return
+    }
+    pdfDoc = doc
 
     const pages: PageMeta[] = []
     for (let i = 1; i <= pdfDoc.numPages; i += 1) {
@@ -129,10 +155,12 @@ async function upgradeToPdf() {
     await nextTick()
 
     const firstPage = paintPages()
-    const timeout = new Promise((_, reject) =>
-      window.setTimeout(() => reject(new Error('render timeout')), PDF_FIRST_PAGE_TIMEOUT),
-    )
+    let timeoutId: number | undefined
+    const timeout = new Promise((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('render timeout')), PDF_FIRST_PAGE_TIMEOUT)
+    })
     await Promise.race([firstPage, timeout])
+    window.clearTimeout(timeoutId)
 
     pdfState.value = 'ready'
 
@@ -178,6 +206,9 @@ watch(
 )
 /** 释放 pdf.js 文档与 worker：不销毁的话，换文档 / 卸载组件后内存会一直挂着 */
 function teardownPdf() {
+  loadSeq += 1
+  renderTask?.cancel()
+  renderTask = null
   if (pdfDoc) {
     pdfDoc.destroy()
     pdfDoc = null

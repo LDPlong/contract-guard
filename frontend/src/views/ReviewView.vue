@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ArrowLeft, MessageCircle, Printer, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import AgentTrace from '@/components/AgentTrace.vue'
@@ -142,9 +142,14 @@ const reviewContext = computed(() => {
   ].join('\n')
 })
 
-onMounted(() => {
-  void store.resume(props.docId)
-})
+// 路由复用组件实例：必须监听 docId，从「审查记录」切到另一份合同时才能刷新
+watch(
+  () => props.docId,
+  (id) => {
+    if (id) void store.resume(id)
+  },
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
   store.reset()

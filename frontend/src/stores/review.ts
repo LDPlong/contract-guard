@@ -25,6 +25,9 @@ const STEP_TITLES: Record<string, string> = {
 
 const RISK_ORDER: Record<RiskLevel, number> = { high: 3, medium: 2, low: 1, none: 0 }
 
+/** 进行中审查流的 AbortController：模块级，供 abortStream 使用 */
+let streamAbort: AbortController | null = null
+
 export const useReviewStore = defineStore('review', {
   state: () => ({
     documentId: '',
@@ -61,7 +64,16 @@ export const useReviewStore = defineStore('review', {
   },
 
   actions: {
+    /** 中断进行中的 SSE 流：切文档/离开页面时防止晚到的帧写进新状态 */
+    abortStream() {
+      if (streamAbort) {
+        streamAbort.abort()
+        streamAbort = null
+      }
+    },
+
     async load(documentId: string) {
+      this.abortStream()
       this.documentId = documentId
       this.phase = 'loading'
       this.error = ''
@@ -130,6 +142,9 @@ export const useReviewStore = defineStore('review', {
 
     async start() {
       if (this.phase === 'reviewing') return
+      this.abortStream()
+      streamAbort = new AbortController()
+      const startedFor = this.documentId
       this.phase = 'reviewing'
       this._resetSteps()
       this.findings = []
@@ -146,7 +161,9 @@ export const useReviewStore = defineStore('review', {
       }, 200)
 
       try {
-        for await (const frame of streamReview(this.documentId)) {
+        for await (const frame of streamReview(this.documentId, streamAbort?.signal)) {
+          // 跨文档保护：用户已切到另一份合同时，晚到的帧直接丢弃
+          if (this.documentId !== startedFor) return
           const data = frame.data as Record<string, unknown>
           switch (frame.event) {
             case 'step': {

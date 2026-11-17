@@ -34,21 +34,29 @@ HEAVY_SUFFIXES = ("/review",)
 HEAVY_EXACT = ("/api/v1/documents", "/api/v1/assistant/ask")
 
 
-def client_ip(request: Request) -> str:
-    """反代场景下取真实来源；没有代理头时用连接地址。"""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real = request.headers.get("X-Real-IP")
-    if real:
-        return real.strip()
+def client_ip(request: Request, trust_proxy: bool = False) -> str:
+    """取限流用的客户端标识。
+
+    仅当部署在可信反代之后（TRUST_PROXY_HEADERS=true）才解析转发头——
+    公网直连时这些头由客户端任意伪造，盲信等于给每个攻击者无限个限流桶。
+    """
+    if trust_proxy:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        real = request.headers.get("X-Real-IP")
+        if real:
+            return real.strip()
     return request.client.host if request.client else "unknown"
 
 
 def is_heavy(request: Request) -> bool:
     path = request.url.path
-    if request.method == "POST" and path.rstrip("/") in {p.rstrip("/") for p in HEAVY_EXACT}:
+    if request.method != "POST":
+        return False
+    if path.rstrip("/") in {p.rstrip("/") for p in HEAVY_EXACT}:
         return True
+    # method 已确认是 POST；不检查的话 SPA 页面路由（GET /review）会被误限
     return path.endswith(HEAVY_SUFFIXES)
 
 

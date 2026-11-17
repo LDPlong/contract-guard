@@ -20,6 +20,9 @@ from app.core.logging import get_logger
 from app.models.base import get_session
 from app.models.document import Clause, Document
 from app.models.review import Review
+
+# 解析后台任务的强引用集合，防止被 GC 中途回收（asyncio 官方要求）
+_background_tasks: set[asyncio.Task] = set()
 from app.schemas.document import DeleteOut, UploadOut, to_detail
 from app.services import document_service
 from app.services.storage import save_upload
@@ -92,9 +95,10 @@ async def list_documents(
             {
                 "document_id": d.id,
                 "filename": d.filename,
-                "contract_type": d.contract_type,
+                # 无审查记录时用文档真实状态：可能是 parsing/failed，不能谎报 parsed
+                "status": review.status if review else d.status,
+                "contract_type": d.contract_type or "unknown",
                 "safety_score": review.safety_score if review else None,
-                "status": review.status if review else "parsed",
                 # 库里存的是 UTC（SQLite now() 即 UTC）；裸 isoformat 没有时区后缀，
                 # 前端会按本地时区解析，出现"刚提交却显示 8 小时前"
                 "created_at": d.created_at.replace(tzinfo=timezone.utc).isoformat(),
@@ -139,6 +143,9 @@ async def upload_document(
         return ok(payload.model_dump())
 
     task = asyncio.create_task(document_service.process_document(doc.id))
+    # 事件循环只持弱引用：不保存强引用的话任务可能被 GC 中途回收
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     try:
         result = await asyncio.wait_for(
             asyncio.shield(task), timeout=document_service.parse_timeout()

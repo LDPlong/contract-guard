@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -77,6 +78,27 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def body_size_guard(request: Request, call_next):
+    """multipart 解析发生在业务校验之前，超大 POST 会先写满磁盘临时文件。
+
+    用 Content-Length 前置拒绝：max_file_mb + 1MB 余量（表单开销）。
+    """
+    limit_bytes = settings.max_file_mb * 1024 * 1024 + 1024 * 1024
+    content_length = request.headers.get("content-length")
+    if request.method == "POST" and content_length and content_length.isdigit():
+        if int(content_length) > limit_bytes:
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "code": int(ErrorCode.PARAM_INVALID),
+                    "message": f"文件超过 {settings.max_file_mb}MB 上限",
+                    "data": None,
+                },
+            )
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def rate_limit(request: Request, call_next):
     """按 IP + 档位做 60 秒滑动窗口限流。
 
@@ -86,31 +108,11 @@ async def rate_limit(request: Request, call_next):
     if not settings.rate_limit_enabled or is_exempt(request.url.path):
         return await call_next(request)
 
-    # 每日配额先查：超了直接拒，不再消耗每分钟窗口
-    quota_name = quota_bucket(request.url.path, request.method)
-    if quota_name:
-        limit = (
-            settings.review_daily_limit
-            if quota_name == "review"
-            else settings.assistant_daily_limit
-        )
-        allowed, used = daily_quota.hit(quota_name, limit)
-        if not allowed:
-            label = "审查" if quota_name == "review" else "答疑"
-            log.warning("daily quota exceeded bucket=%s used=%s", quota_name, used)
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "code": int(ErrorCode.RATE_LIMITED),
-                    "message": f"今日{label}次数已达上限（{limit} 次），明日自动恢复",
-                    "data": {"bucket": quota_name, "used": used, "limit": limit},
-                },
-            )
-
+    # 每分钟限流先挡：被拒的请求不消耗每日配额（否则 83 分钟可烧光全站额度）
     heavy = is_heavy(request)
     bucket = "heavy" if heavy else "default"
     limit = settings.rate_limit_heavy_per_minute if heavy else settings.rate_limit_per_minute
-    ip = client_ip(request)
+    ip = client_ip(request, settings.trust_proxy_headers)
 
     allowed, remaining, retry_after = limiter.hit(f"{ip}:{bucket}", limit)
     if not allowed:
@@ -125,6 +127,27 @@ async def rate_limit(request: Request, call_next):
             headers={"Retry-After": str(retry_after)},
         )
 
+    # 通过每分钟窗口后才扣每日配额；只有真正消耗模型调用的操作计数
+    quota_name = quota_bucket(request.url.path, request.method)
+    if quota_name:
+        quota_limit = (
+            settings.review_daily_limit
+            if quota_name == "review"
+            else settings.assistant_daily_limit
+        )
+        quota_allowed, quota_used = daily_quota.hit(quota_name, quota_limit)
+        if not quota_allowed:
+            label = "审查" if quota_name == "review" else "答疑"
+            log.warning("daily quota exceeded bucket=%s used=%s", quota_name, quota_used)
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "code": int(ErrorCode.RATE_LIMITED),
+                    "message": f"今日{label}次数已达上限（{quota_limit} 次），明日自动恢复",
+                    "data": {"bucket": quota_name, "used": quota_used, "limit": quota_limit},
+                },
+            )
+
     response = await call_next(request)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     return response
@@ -132,7 +155,8 @@ async def rate_limit(request: Request, call_next):
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
-    rid = request.headers.get("X-Request-Id") or uuid.uuid4().hex[:12]
+    raw_rid = request.headers.get("X-Request-Id") or ""
+    rid = re.sub(r"[^A-Za-z0-9-]", "", raw_rid)[:32] or uuid.uuid4().hex[:12]
     token = request_id_ctx.set(rid)
     try:
         response = await call_next(request)
@@ -159,7 +183,12 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         content={
             "code": int(ErrorCode.PARAM_INVALID),
             "message": "参数校验失败",
-            "data": {"errors": exc.errors()[:5]},
+            "data": {
+            "errors": [
+                {"loc": e.get("loc"), "msg": e.get("msg"), "type": e.get("type")}
+                for e in exc.errors()[:5]
+            ]
+        },
         },
     )
 

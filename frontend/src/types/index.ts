@@ -117,7 +117,8 @@ export interface DocumentListItem {
   filename: string
   contract_type: ContractType
   safety_score: number | null
-  status: ReviewStatus
+  /** 文档未审查过时是 DocumentStatus（如 parsed），审查过则是 ReviewStatus */
+  status: ReviewStatus | 'parsed' | 'uploaded' | 'failed'
   created_at: string
 }
 

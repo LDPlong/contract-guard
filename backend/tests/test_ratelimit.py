@@ -95,7 +95,22 @@ def test_client_ip_prefers_forwarded_header():
         "client": ("127.0.0.1", 1234),
         "query_string": b"",
     }
-    assert client_ip(Request(scope)) == "1.2.3.4"
+    assert client_ip(Request(scope), trust_proxy=True) == "1.2.3.4"
+
+
+def test_client_ip_ignores_forwarded_header_by_default():
+    """公网 8000 直连部署：XFF 由客户端伪造，默认必须忽略，否则限流形同虚设。"""
+    from starlette.requests import Request
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/",
+        "headers": [(b"x-forwarded-for", b"1.2.3.4")],
+        "client": ("127.0.0.1", 1234),
+        "query_string": b"",
+    }
+    assert client_ip(Request(scope)) == "127.0.0.1"
 
 
 # ---------- 接口层 ----------
@@ -128,13 +143,23 @@ async def test_health_is_not_limited(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_different_forwarded_ips_have_separate_buckets(client, monkeypatch):
+async def test_forwarded_ips_only_separate_when_trusted(client, monkeypatch):
+    """默认不信任 XFF：伪造头拿不到独立桶；置于可信反代后开启才生效。"""
     monkeypatch.setattr(settings, "rate_limit_heavy_per_minute", 1)
 
+    # 默认：伪造 XFF 无效，同源第二个请求被限
     await client.post("/api/v1/documents", headers={"X-Forwarded-For": "1.1.1.1"})
     blocked = await client.post("/api/v1/documents", headers={"X-Forwarded-For": "1.1.1.1"})
     assert blocked.status_code == 429
 
+    # 显式信任代理后：不同 XFF 有独立桶
+    monkeypatch.setattr(settings, "trust_proxy_headers", True)
+    from app.core.ratelimit import limiter
+
+    limiter.reset()
+    await client.post("/api/v1/documents", headers={"X-Forwarded-For": "1.1.1.1"})
+    ok_first = await client.post("/api/v1/documents", headers={"X-Forwarded-For": "1.1.1.1"})
+    assert ok_first.status_code == 429
     other = await client.post("/api/v1/documents", headers={"X-Forwarded-For": "2.2.2.2"})
     assert other.status_code == 400
 

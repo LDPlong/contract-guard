@@ -21,6 +21,17 @@ from app.services.rag.indexer import load_bm25
 from app.services.rag.types import RetrievedChunk, tokenize
 
 
+_singleton: "Retriever | None" = None
+
+
+def get_retriever() -> "Retriever":
+    """进程级单例。索引只读、构建昂贵（pickle + BM25Okapi 全量），建一次复用。"""
+    global _singleton
+    if _singleton is None:
+        _singleton = Retriever()
+    return _singleton
+
+
 class Retriever:
     def __init__(
         self,

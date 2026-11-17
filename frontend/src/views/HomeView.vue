@@ -117,7 +117,11 @@ async function loadDemo() {
     selected.value = new File([blob], '示例合同_长租机构版.pdf', { type: 'application/pdf' })
     await submit()
   } catch (err) {
+    // submit 失败时自己 catch 了错误（只设 errorMsg），不会抛到这里；
+    // 没有这个兜底，上传失败会让按钮永远停在「正在加载示例…」
     errorMsg.value = err instanceof Error ? err.message : '示例合同加载失败，请直接上传文件。'
+  } finally {
+    // 成功路径会路由跳走（组件卸载），赋值无害；失败路径必须有这条才能复位按钮
     demoLoading.value = false
   }
 }

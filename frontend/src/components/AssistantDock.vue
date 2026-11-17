@@ -57,6 +57,11 @@ function toggle(next = !open.value) {
   open.value = next
 }
 
+/** 浮球入口：不携带上一份合同的上下文（那是审查页内联入口的职责） */
+function openFromFloat() {
+  app.openAssistant('')
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && open.value) toggle(false)
 }
@@ -140,7 +145,7 @@ function onEnter(event: KeyboardEvent) {
     type="button"
     class="fixed bottom-6 right-5 z-40 flex h-11 w-11 items-center justify-center border border-accent-deep bg-accent font-serif text-[15px] leading-none text-white shadow-[0_6px_18px_rgba(18,41,77,0.22)] transition-all hover:-translate-y-0.5 hover:bg-accent-deep print:hidden"
     :aria-label="open ? '收起答疑助手' : '打开答疑助手'"
-    @click="toggle()"
+    @click="open ? toggle(false) : openFromFloat()"
   >
     问
   </button>

@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator
 
 from app.core.logging import get_logger
 from app.services.llm.client import LLMClient
-from app.services.rag.retriever import Retriever
+from app.services.rag.retriever import get_retriever
 from app.services.rag.types import RetrievedChunk
 
 log = get_logger(__name__)
@@ -180,7 +180,7 @@ async def stream_answer(
         }
         return
 
-    retriever = retriever or Retriever()
+    retriever = retriever or get_retriever()
     client = client or LLMClient()
 
     chunks = await _search(retriever, question)

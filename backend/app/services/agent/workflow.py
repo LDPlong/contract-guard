@@ -28,7 +28,7 @@ from app.services.agent.tools import (
 )
 from app.services.llm.client import LLMClient
 from app.services.parsing.models import Clause
-from app.services.rag.retriever import Retriever
+from app.services.rag.retriever import get_retriever
 
 log = get_logger(__name__)
 
@@ -411,7 +411,7 @@ async def run_review(
 ) -> AsyncIterator[dict]:
     """执行一次完整审查，逐条产出 SSE 事件。"""
     board = checklist or load_checklist(contract_type)
-    retriever = retriever or Retriever()
+    retriever = retriever or get_retriever()
     client = client or LLMClient()
 
     yield {
@@ -462,13 +462,20 @@ async def run_review(
             return await _judge_item(item, candidates, missing, full_text, retriever, client)
 
     tasks = [asyncio.create_task(guarded(*entry)) for entry in plan]
-    for task in asyncio.as_completed(tasks):
-        finding = await task
-        done += 1
-        results.append(finding)
-        if finding.risk_level != RiskLevel.NONE:
-            yield {"event": "finding", "data": finding.as_dict()}
-        yield {"event": "progress", "data": {"done": done, "total": total}}
+    try:
+        for task in asyncio.as_completed(tasks):
+            finding = await task
+            done += 1
+            results.append(finding)
+            if finding.risk_level != RiskLevel.NONE:
+                yield {"event": "finding", "data": finding.as_dict()}
+            yield {"event": "progress", "data": {"done": done, "total": total}}
+    finally:
+        # 客户端断开会 cancel 生成器：未完成的判定任务必须显式取消，
+        # 否则它们作为孤儿继续跑完，白烧几十次模型调用
+        for task in tasks:
+            if not task.done():
+                task.cancel()
 
     # 框架审阅：清单逐条判定看不到的"整份合同一边倒"，纯规则、零模型调用。
     # 放在聚合阶段产出，命中一律提示级（low），不当成确证风险。

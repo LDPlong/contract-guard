@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
@@ -30,13 +31,13 @@ from app.services.agent import run_review
 from app.services.agent.prompts import PROMPT_VERSION
 from app.services.llm.client import LLMClient
 from app.services.parsing.models import Clause
-from app.services.rag.retriever import Retriever
+from app.services.rag.retriever import get_retriever
 
 log = get_logger(__name__)
 
 # 便于测试注入假实现
 llm_client_factory = LLMClient
-retriever_factory = Retriever
+retriever_factory = get_retriever
 
 
 
@@ -83,7 +84,7 @@ async def _create_review(session: AsyncSession, document: Document) -> Review:
         status="running",
         prompt_version=PROMPT_VERSION,
         checklist_version="",
-        started_at=datetime.now(),
+        started_at=datetime.utcnow(),
     )
     session.add(review)
     await session.commit()
@@ -105,7 +106,7 @@ async def _persist_result(
     review.model = model_name
     review.checklist_version = payload.get("checklist_version", "")
     review.latency_ms = latency_ms
-    review.finished_at = datetime.now()
+    review.finished_at = datetime.utcnow()
 
     for item in payload.get("findings", []):
         seq = item.get("clause_seq")
@@ -198,10 +199,18 @@ async def stream_review(document_id: str) -> AsyncIterator[str]:
                         "clause_id": _db_clause_id(data.get("clause_id"), clause_id_by_seq),
                     }
                 yield sse_frame(event["event"], data)
+        except asyncio.CancelledError:
+            # 客户端断开（关页面/切文档）会 cancel 生成器：必须回收状态，
+            # 否则 review 永远停在 running；raise 让取消正常传播
+            log.info("review stream cancelled document=%s", document_id)
+            review.status = "failed"
+            review.finished_at = datetime.utcnow()
+            await session.commit()
+            raise
         except Exception as exc:  # noqa: BLE001
             log.exception("review stream failed document=%s", document_id)
             review.status = "failed"
-            review.finished_at = datetime.now()
+            review.finished_at = datetime.utcnow()
             await session.commit()
             yield sse_frame(
                 "error",
